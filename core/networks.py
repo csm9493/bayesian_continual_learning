@@ -4,30 +4,29 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-def softplus(tensor):
-    # sigma 값이 0 이상이 되게 해주는 function
-    return torch.log(1 + torch.exp(tensor))
 
 class Gaussian(object):
-    def __init__(self, mu, rho):
+    def __init__(self, mu, rho, DEVICE):
         super().__init__()
         self.mu = mu
         self.rho = rho
         self.normal = torch.distributions.Normal(0,1)
+        self.DEVICE = DEVICE
     
     @property
     def sigma(self):
         return torch.log1p(torch.exp(self.rho))
     
     def sample(self):
-        epsilon = self.normal.sample(self.rho.size()).to(DEVICE)
+        epsilon = self.normal.sample(self.rho.size()).to(self.DEVICE)
         return self.mu + self.sigma * epsilon
     
 class BayesianLinear(nn.Module):
-    def __init__(self, in_features, out_features, init_type = 'random'):
+    def __init__(self, in_features, out_features, init_type = 'random',DEVICE=None ):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
+        self.DEVICE = DEVICE
         
         if init_type == 'random':
             
@@ -47,12 +46,12 @@ class BayesianLinear(nn.Module):
             
         # Weight parameters
         self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(min_value_mu,max_value_mu))
-        self.weight_sigma = nn.Parameter(softplus(torch.Tensor(out_features, in_features).uniform_(min_value_sigma,max_value_sigma))) # sigma >= 0
-        self.weight = Gaussian(self.weight_mu, self.weight_sigma)
+        self.weight_sigma = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(min_value_sigma,max_value_sigma)) # sigma >= 0
+        self.weight = Gaussian(self.weight_mu, self.weight_sigma, self.DEVICE)
         # Bias parameters
         self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(min_value_mu,max_value_mu))
-        self.bias_sigma = nn.Parameter(softplus(torch.Tensor(out_features).uniform_(min_value_sigma,max_value_sigma)))
-        self.bias = Gaussian(self.bias_mu, self.bias_sigma)
+        self.bias_sigma = nn.Parameter(torch.Tensor(out_features).uniform_(min_value_sigma,max_value_sigma))
+        self.bias = Gaussian(self.bias_mu, self.bias_sigma, self.DEVICE)
 
 
     def forward(self, input, sample=False, calculate_log_probs=False):
@@ -67,20 +66,18 @@ class BayesianLinear(nn.Module):
 
     def variance_init(self):
         
-        min_value_sigma = -5
+        min_value_sigma = +5
         max_value_sigma = +5
         
-        self.weight_sigma = nn.Parameter(softplus(torch.Tensor(self.out_features, self.in_features).uniform_(min_value_sigma,max_value_sigma))) # sigma >= 0
-        self.bias_sigma = nn.Parameter(softplus(torch.Tensor(self.out_features).uniform_(min_value_sigma,max_value_sigma)))
-        
-        
+        self.weight_sigma.data = torch.Tensor(self.out_features, self.in_features).uniform_(min_value_sigma,max_value_sigma) # sigma >= 0
+        self.bias_sigma.data = torch.Tensor(self.out_features).uniform_(min_value_sigma,max_value_sigma)
 
 class BayesianNetwork(nn.Module):
-    def __init__(self, init_type = 'random'):
+    def __init__(self, init_type = 'random', DEVICE = None):
         super().__init__()
-        self.l1 = BayesianLinear(28*28, 400, init_type)
-        self.l2 = BayesianLinear(400, 400, init_type)
-        self.l3 = BayesianLinear(400, 10, init_type)
+        self.l1 = BayesianLinear(28*28, 400, init_type, DEVICE)
+        self.l2 = BayesianLinear(400, 400, init_type, DEVICE)
+        self.l3 = BayesianLinear(400, 10, init_type, DEVICE)
         
         self.layer_arr = [self.l1, self.l2, self.l3]
     
@@ -98,16 +95,48 @@ class BayesianNetwork(nn.Module):
         self.l3.variance_init()
 
     
-    def sample_elbo(self, input, target, samples=None):
-#         outputs = torch.zeros(samples, BATCH_SIZE, CLASSES).to(DEVICE)
-#         log_priors = torch.zeros(samples).to(DEVICE)
-#         log_variational_posteriors = torch.zeros(samples).to(DEVICE)
-#         for i in range(samples):
-#             outputs[i] = self(input, sample=True)
-#             log_priors[i] = self.log_prior()
-#             log_variational_posteriors[i] = self.log_variational_posterior()
-#         log_prior = log_priors.mean()
-#         log_variational_posterior = log_variational_posteriors.mean()
-#         negative_log_likelihood = F.nll_loss(outputs.mean(0), target, size_average=False)
-#         loss = (log_variational_posterior - log_prior)/NUM_BATCHES + negative_log_likelihood
-        return 
+    def sample_elbo(self, data, target, BATCH_SIZE, DEVICE, samples=2):
+        outputs = torch.zeros(samples, BATCH_SIZE, 10).to(DEVICE)
+
+        for i in range(samples):
+            outputs[i] = self(data, sample=True)
+
+        negative_log_likelihood = F.nll_loss(outputs.mean(0), target, size_average=False)
+        loss = negative_log_likelihood
+        
+#         print (loss)
+        return loss
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
