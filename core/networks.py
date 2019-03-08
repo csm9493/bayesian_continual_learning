@@ -33,25 +33,25 @@ class BayesianLinear(nn.Module):
             min_value_mu = -5
             max_value_mu = +5
             
-            min_value_sigma = +1
-            max_value_sigma = +1
+            min_value_rho = +1
+            max_value_rho = +1
             
         else:
         
             min_value_mu = 0
             max_value_mu = 0
             
-            min_value_sigma = 1
-            max_value_sigma = 1
+            min_value_rho = 1
+            max_value_rho = 1
             
         # Weight parameters
         self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(min_value_mu,max_value_mu))
-        self.weight_sigma = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(min_value_sigma,max_value_sigma)) # sigma >= 0
-        self.weight = Gaussian(self.weight_mu, self.weight_sigma, self.DEVICE)
+        self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(min_value_rho,max_value_rho)) # sigma >= 0
+        self.weight = Gaussian(self.weight_mu, self.weight_rho, self.DEVICE)
         # Bias parameters
         self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(min_value_mu,max_value_mu))
-        self.bias_sigma = nn.Parameter(torch.Tensor(out_features).uniform_(min_value_sigma,max_value_sigma))
-        self.bias = Gaussian(self.bias_mu, self.bias_sigma, self.DEVICE)
+        self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(min_value_rho,max_value_rho))
+        self.bias = Gaussian(self.bias_mu, self.bias_rho, self.DEVICE)
 
 
     def forward(self, input, sample=False, calculate_log_probs=False):
@@ -66,11 +66,11 @@ class BayesianLinear(nn.Module):
 
     def variance_init(self):
         
-        min_value_sigma = +1
-        max_value_sigma = +1
+        min_value_rho = +1
+        max_value_rho = +1
         
-        self.weight_sigma.data = torch.Tensor(self.out_features, self.in_features).uniform_(min_value_sigma,max_value_sigma) # sigma >= 0
-        self.bias_sigma.data = torch.Tensor(self.out_features).uniform_(min_value_sigma,max_value_sigma)
+        self.weight_rho.data = torch.Tensor(self.out_features, self.in_features).uniform_(min_value_rho,max_value_rho) # sigma >= 0
+        self.bias_rho.data = torch.Tensor(self.out_features).uniform_(min_value_rho,max_value_rho)
 
 class BayesianNetwork(nn.Module):
     def __init__(self, init_type = 'random', DEVICE = None):
