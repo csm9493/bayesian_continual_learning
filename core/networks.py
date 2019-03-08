@@ -96,14 +96,19 @@ class BayesianNetwork(nn.Module):
 
     
     def sample_elbo(self, data, target, BATCH_SIZE, DEVICE, samples=2):
-        outputs = torch.zeros(samples, BATCH_SIZE, 10).to(DEVICE)
-
-        for i in range(samples):
-            outputs[i] = self(data, sample=True)
-
-        negative_log_likelihood = F.nll_loss(outputs.mean(0), target, size_average=False)
-        loss = negative_log_likelihood
+        outputs = torch.zeros(BATCH_SIZE, 10, samples).to(DEVICE)
+        targets = target.view(BATCH_SIZE,1)
         
+        for i in range(samples):
+            outputs[:,:,i] = self(data, sample=True)
+            if i>0:
+                targets = torch.cat([targets, target.view(BATCH_SIZE, 1)], dim=1)
+        
+        
+        #(N,C,d1,d2,d3,....)
+        negative_log_likelihood = F.nll_loss(outputs, targets, size_average=False)
+        loss = negative_log_likelihood.mean()
+
 #         print (loss)
         return loss
     
