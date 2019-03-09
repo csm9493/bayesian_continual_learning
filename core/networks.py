@@ -54,7 +54,7 @@ class BayesianLinear(nn.Module):
         self.bias = Gaussian(self.bias_mu, self.bias_rho, self.DEVICE)
 
 
-    def forward(self, input, sample=False, calculate_log_probs=False):
+    def forward(self, input, sample=False):
         if self.training or sample:
             weight = self.weight.sample()
             bias = self.bias.sample()
@@ -82,7 +82,8 @@ class BayesianNetwork(nn.Module):
     
     def forward(self, x, sample=False):
         x = x.view(-1, 28*28)
-        x = F.relu(self.l1(x, sample))
+        x = self.l1(x, sample)
+        x = F.relu(x)
         x = self.l2(x, sample)
         x = F.log_softmax(x, dim=1)
         return x
