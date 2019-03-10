@@ -235,7 +235,6 @@ class Appr(object):
 
             # 만약 BayesianNetwork 이면
             if isinstance(saver, Net) and isinstance(trainer, Net):
-
                 i = 0
 
                 # Network 내부의 layer에 순차적으로 접근
@@ -262,7 +261,6 @@ class Appr(object):
                 loss = loss / mini_batch_size
 
         #             print (mean_reg, sigma_reg) # regularization value 확인
-
         loss = loss + mean_reg + sigma_reg
 
         return loss
