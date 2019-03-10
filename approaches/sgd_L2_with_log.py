@@ -9,8 +9,6 @@ args = get_args()
 
 if args.conv_net:
     from networks.conv_net import Net
-elif args.one_output:
-    from networks.mlp_oo import Net
 else:
     from networks.mlp import Net
 
@@ -29,7 +27,7 @@ class Appr(object):
         self.lamb = args.lamb
 
         file_name = log_name
-        self.logger = utils.logger(file_name=file_name, resume=False, path='../res/csvdata/', data_format='csv')
+        self.logger = utils.logger(file_name=file_name, resume=False, path='./result_data/csvdata/', data_format='csv')
         
         self.ce=torch.nn.CrossEntropyLoss()
         self.optimizer=self._get_optimizer()
@@ -107,16 +105,12 @@ class Appr(object):
         for i in range(0,len(r),self.sbatch):
             if i+self.sbatch<=len(r): b=r[i:i+self.sbatch]
             else: b=r[i:]
-            images=torch.autograd.Variable(x[b],volatile=False)
-            targets=torch.autograd.Variable(y[b],volatile=False)
+            images=x[b]
+            targets=y[b]
 
-            # Forward
+            # Forward current model
             outputs=self.model.forward(images)
-            if args.one_output:
-                output = outputs
-            else:
-                output=outputs[t]
-            loss=self.criterion(t,output,targets)
+            loss=self.criterion(t,outputs,targets)
 
             # Backward
             self.optimizer.zero_grad()
@@ -139,17 +133,13 @@ class Appr(object):
         for i in range(0,len(r),self.sbatch):
             if i+self.sbatch<=len(r): b=r[i:i+self.sbatch]
             else: b=r[i:]
-            images=torch.autograd.Variable(x[b],volatile=True)
-            targets=torch.autograd.Variable(y[b],volatile=True)
+            images=x[b]
+            targets=y[b]
 
             # Forward
             outputs=self.model.forward(images)
-            if args.one_output:
-                output = outputs
-            else:
-                output=outputs[t]
-            loss=self.criterion(t,output,targets)
-            _,pred=output.max(1)
+            loss=self.criterion(t,outputs,targets)
+            _,pred=outputs.max(1)
             hits=(pred==targets).float()
 
             # Log
@@ -160,8 +150,7 @@ class Appr(object):
             total_num+=len(b)
 
         return total_loss/total_num,total_acc/total_num
-    
-    
+
     def criterion(self,t,output,targets):
         # Regularization for all previous tasks
         loss_reg=0
