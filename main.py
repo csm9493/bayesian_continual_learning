@@ -188,7 +188,10 @@ for t, ncla in taskcla:
     for u in range(t + 1):
         xtest = data[u]['test']['x'].cuda()
         ytest = data[u]['test']['y'].cuda()
-        test_loss, test_acc = appr.eval(xtest, ytest)
+        if args.approach == 'baye' or args.approach == 'baye_hat':
+            test_loss, test_acc = appr.eval(xtest, ytest)
+        else:
+            test_loss, test_acc = appr.eval(u, xtest, ytest)
         print('>>> Test on task {:2d} - {:15s}: loss={:.3f}, acc={:5.1f}% <<<'.format(u, data[u]['name'], test_loss,
                                                                                       100 * test_acc))
         acc[t, u] = test_acc
