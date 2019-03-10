@@ -91,16 +91,12 @@ def fisher_matrix_diag(t,x,y,model,criterion,sbatch=20):
     model.train()
     for i in tqdm(range(0,x.size(0),sbatch),desc='Fisher diagonal',ncols=100,ascii=True):
         b=torch.LongTensor(np.arange(i,np.min([i+sbatch,x.size(0)]))).cuda()
-        images=torch.autograd.Variable(x[b],volatile=False)
-        target=torch.autograd.Variable(y[b],volatile=False)
+        images=x[b]
+        target=y[b]
         # Forward and backward
         model.zero_grad()
         outputs=model.forward(images)
-        if args.one_output:
-            output = outputs
-        else:
-            output = outputs[t]
-        loss=criterion(t,output,target)
+        loss=criterion(t,outputs,target)
         loss.backward()
         # Get gradients
         for n,p in model.named_parameters():
