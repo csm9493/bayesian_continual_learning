@@ -108,7 +108,7 @@ class BayesianNetwork(nn.Module):
         # print(outputs.type())
 
         # loss = F.nll_loss(outputs.mean(0), target, size_average=False)
-        loss = F.cross_entropy(outputs.mean(0), target, size_average=False)
+        loss = F.cross_entropy(outputs.mean(0), target, size_average=False, reduction='sum')
 
         return loss
     
