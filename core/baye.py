@@ -230,35 +230,31 @@ class Appr(object):
 
         # net1, net2에서 각 레이어에 있는 mean, sigma를 이용하여 regularization 구현
 
-        # 각 모델에 module 접근
-        for saver, trainer in zip(saver_net.modules(), trainer_net.modules()):
+        # 만약 BayesianNetwork 이면
+        if isinstance(saver_net, Net) and isinstance(trainer_net, Net):
 
-            # 만약 BayesianNetwork 이면
-            if isinstance(saver, Net) and isinstance(trainer, Net):
-                i = 0
-
-                # Network 내부의 layer에 순차적으로 접근
-                for saver_layer, trainer_layer in zip(saver.layer_arr, trainer.layer_arr):
+            # 각 모델에 module 접근
+            for saver_layer, trainer_layer in zip(saver_net.modules(), trainer_net.modules()):
                     # calculate mean regularization
 
-                    trainer_mu = trainer_layer.weight_mu
-                    saver_mu = saver_layer.weight_mu
+                trainer_mu = trainer_layer.weight_mu
+                saver_mu = saver_layer.weight_mu
 
-                    trainer_sigma = torch.log1p(torch.exp(trainer_layer.weight_rho))
-                    saver_sigma = torch.log1p(torch.exp(saver_layer.weight_rho))
+                trainer_sigma = torch.log1p(torch.exp(trainer_layer.weight_rho))
+                saver_sigma = torch.log1p(torch.exp(saver_layer.weight_rho))
 
-                    # mean_reg += lambda_*(torch.div(trainer_layer.weight_mu, saver_layer.weight_rho)-torch.div(trainer_layer.weight_mu, trainer_layer.weight_rho)).norm(2)
-                    mean_reg += (torch.div(trainer_mu, saver_sigma) - torch.div(saver_mu, saver_sigma)).norm(2)
+                # mean_reg += lambda_*(torch.div(trainer_layer.weight_mu, saver_layer.weight_rho)-torch.div(trainer_layer.weight_mu, trainer_layer.weight_rho)).norm(2)
+                mean_reg += (torch.div(trainer_mu, saver_sigma) - torch.div(saver_mu, saver_sigma)).norm(2)
 
-                    # calculate sigma_reg regularization
+                # calculate sigma_reg regularization
 
-                    # sigma_reg += torch.sum(torch.div(trainer_layer.weight_rho, saver_layer.weight_rho) - torch.log(torch.div(trainer_layer.weight_rho, saver_layer.weight_rho)))
-                    sigma_reg += torch.sum(torch.div(trainer_sigma * trainer_sigma, saver_sigma * saver_sigma) - torch.log(
-                        torch.div(trainer_sigma * trainer_sigma, saver_sigma * saver_sigma)))
+                # sigma_reg += torch.sum(torch.div(trainer_layer.weight_rho, saver_layer.weight_rho) - torch.log(torch.div(trainer_layer.weight_rho, saver_layer.weight_rho)))
+                sigma_reg += torch.sum(torch.div(trainer_sigma * trainer_sigma, saver_sigma * saver_sigma) - torch.log(
+                    torch.div(trainer_sigma * trainer_sigma, saver_sigma * saver_sigma)))
 
-                sigma_reg = sigma_reg / (mini_batch_size * 2)
-                mean_reg = mean_reg / (mini_batch_size * 2)
-                loss = loss / mini_batch_size
+            sigma_reg = sigma_reg / (mini_batch_size * 2)
+            mean_reg = mean_reg / (mini_batch_size * 2)
+            loss = loss / mini_batch_size
 
         #             print (mean_reg, sigma_reg) # regularization value 확인
         loss = loss + self.lamb * mean_reg + sigma_reg
