@@ -103,10 +103,10 @@ class Appr(object):
             print()
 
             for n, m in self.model.named_children():
-                print(m.weight.sigma)
-                print(m.weight.sigma.mean())
+                print(n, m.weight.sigma.mean())
 
-            exit()
+            if e==3:
+                exit()
         # Restore best
         utils.set_model_(self.model, best_model)
 
