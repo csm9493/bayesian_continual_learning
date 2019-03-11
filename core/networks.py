@@ -56,11 +56,9 @@ class BayesianLinear(nn.Module):
         if self.training or sample:
             weight = self.weight.sample()
             bias = self.bias.sample()
-            print('weight is sampled')
         else:
             weight = self.weight.mu
             bias = self.bias.mu
-            print('weight is not sampled')
 
         return F.linear(input, weight, bias)
 
