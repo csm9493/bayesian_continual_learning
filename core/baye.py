@@ -183,7 +183,7 @@ class Appr(object):
                 targets = y[b]
 
                 # Forward
-                outputs = self.model.forward(images)
+                outputs = self.model(images)
                 loss = F.cross_entropy(outputs, targets, reduction='sum')
                 _, pred = outputs.max(1)
                 hits = (pred == targets).float()
