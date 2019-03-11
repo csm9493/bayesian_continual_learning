@@ -195,7 +195,7 @@ class Appr(object):
                 # print(outputs.type())
 
                 loss = F.nll_loss(outputs.mean(0), targets, reduction='sum')
-                _, pred = outputs.max(1)
+                _, pred = outputs.mean(0).max(1)
                 hits = (pred == targets).float()
 
                 # Log
