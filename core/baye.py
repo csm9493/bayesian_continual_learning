@@ -102,6 +102,9 @@ class Appr(object):
                     self.optimizer = self._get_optimizer(lr)
             print()
 
+            self.model_old = deepcopy(self.model)
+            utils.freeze_model(self.model_old)  # Freeze the weights
+
             for n, m in self.model.named_children():
                 print(n, m.weight.sigma.min())
 
@@ -147,9 +150,6 @@ class Appr(object):
             self.optimizer.step()
 
             # 2. 1 batch가 끝나면 saver_net에 trainet_net을 복사 (weight = mean, sigma)
-
-            self.model_old = deepcopy(self.model)
-            utils.freeze_model(self.model_old)  # Freeze the weights
 
         # for batch_idx, (data, target) in enumerate(train_loader):
         #     data, target = data.to(DEVICE), target.to(DEVICE)
