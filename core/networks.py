@@ -98,7 +98,7 @@ class BayesianNetwork(nn.Module):
         self.l2.variance_init()
         # self.l3.variance_init()
     
-    def sample_elbo(self, data, target, BATCH_SIZE, samples=2):
+    def sample_elbo(self, data, target, BATCH_SIZE, samples=10):
         # outputs = torch.zeros(samples, BATCH_SIZE, 10).to(DEVICE)
         outputs = torch.zeros(samples, BATCH_SIZE, 10).cuda()
 
