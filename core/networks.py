@@ -31,16 +31,16 @@ class BayesianLinear(nn.Module):
             min_value_mu = -5
             max_value_mu = +5
             
-            min_value_rho = +1
-            max_value_rho = +1
+            min_value_rho = +3
+            max_value_rho = +3
             
         else:
         
             min_value_mu = 0
             max_value_mu = 0
             
-            min_value_rho = 1
-            max_value_rho = 1
+            min_value_rho = 3
+            max_value_rho = 3
             
         # Weight parameters
         self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(min_value_mu,max_value_mu))
@@ -64,8 +64,8 @@ class BayesianLinear(nn.Module):
 
     def variance_init(self):
         
-        min_value_rho = +1
-        max_value_rho = +1
+        min_value_rho = +3
+        max_value_rho = +3
         
         self.weight_rho.data = torch.Tensor(self.out_features, self.in_features).uniform_(min_value_rho,max_value_rho).cuda() # sigma >= 0
         self.bias_rho.data = torch.Tensor(self.out_features).uniform_(min_value_rho,max_value_rho).cuda()
