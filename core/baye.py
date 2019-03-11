@@ -248,8 +248,8 @@ class Appr(object):
                 # calculate sigma_reg regularization
 
                 # sigma_reg += torch.sum(torch.div(trainer_layer.weight_rho, saver_layer.weight_rho) - torch.log(torch.div(trainer_layer.weight_rho, saver_layer.weight_rho)))
-                sigma_reg += torch.sum(torch.div(trainer_sigma * trainer_sigma, saver_sigma * saver_sigma) - torch.log(
-                    torch.div(trainer_sigma * trainer_sigma, saver_sigma * saver_sigma)))
+                sigma_reg += torch.sum(torch.div(trainer_sigma **2 , saver_sigma **2) - torch.log(
+                    torch.div(trainer_sigma **2, saver_sigma **2)))
 
             sigma_reg = sigma_reg / (mini_batch_size * 2)
             mean_reg = mean_reg / (mini_batch_size * 2)
