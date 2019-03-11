@@ -102,6 +102,7 @@ class Appr(object):
                     self.optimizer = self._get_optimizer(lr)
             print()
 
+            exit()
         # Restore best
         utils.set_model_(self.model, best_model)
 
