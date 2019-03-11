@@ -59,7 +59,7 @@ class Appr(object):
             # Train
             clock0 = time.time()
 
-            self.model.variance_init()  # trainer net의 variance크게 init
+            # self.model.variance_init()  # trainer net의 variance크게 init
 
             # 1. trainer_net training 하는데 regularization을 위해서 saver_net의 정보 이용
 
