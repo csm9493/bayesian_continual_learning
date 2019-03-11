@@ -12,6 +12,8 @@ tstart = time.time()
 args = get_args()
 log_name = '{}_{}_{}_{}_{}_lamb_{}_{}'.format(args.date, args.experiment, args.tasknum, args.approach, args.seed,
                                               args.lamb, args.nepochs)
+if args.use_sigmamax:
+    log_name += '_sigmamax'
 
 if args.conv_net:
     log_name = log_name + '_conv'

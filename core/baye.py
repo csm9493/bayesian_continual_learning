@@ -253,6 +253,9 @@ class Appr(object):
                 # mean_reg += lambda_*(torch.div(trainer_layer.weight_mu, saver_layer.weight_rho)-torch.div(trainer_layer.weight_mu, trainer_layer.weight_rho)).norm(2)
                 mean_reg += (torch.div(trainer_mu, saver_sigma) - torch.div(saver_mu, saver_sigma)).norm(2)
 
+                if args.use_sigmamax:
+                    mean_reg = mean_reg * saver_sigma.max()
+
                 # calculate sigma_reg regularization
 
                 # sigma_reg += torch.sum(torch.div(trainer_layer.weight_rho, saver_layer.weight_rho) - torch.log(torch.div(trainer_layer.weight_rho, saver_layer.weight_rho)))
@@ -261,6 +264,7 @@ class Appr(object):
 
             sigma_reg = sigma_reg / (mini_batch_size * 2)
             mean_reg = mean_reg / (mini_batch_size * 2)
+
             loss = loss / mini_batch_size
 
         #             print (mean_reg, sigma_reg) # regularization value 확인
