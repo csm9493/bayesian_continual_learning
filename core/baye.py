@@ -104,9 +104,7 @@ class Appr(object):
 
             for n, m in self.model.named_children():
                 print(n, m.weight.sigma.min())
-
-            if e==3:
-                exit()
+                
         # Restore best
         utils.set_model_(self.model, best_model)
 
