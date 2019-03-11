@@ -102,9 +102,9 @@ class Appr(object):
                     self.optimizer = self._get_optimizer(lr)
             print()
 
-            for n, m in self.model.named_children():
-                print(n, m.weight.sigma.min())
-                
+            # for n, m in self.model.named_children():
+            #     print(n, m.weight.sigma.min())
+
         # Restore best
         utils.set_model_(self.model, best_model)
 
