@@ -168,7 +168,7 @@ class Appr(object):
 
         return
 
-    def eval(self, x, y):
+    def eval(self, x, y, samples=10):
         total_loss = 0
         total_acc = 0
         total_num = 0
@@ -188,8 +188,13 @@ class Appr(object):
                 targets = y[b]
 
                 # Forward
-                outputs = self.model(images)
-                loss = F.cross_entropy(outputs, targets, reduction='sum')
+                outputs = torch.zeros(samples, len(targets), 10).cuda()
+
+                for i in range(samples):
+                    outputs[i] = self.model(images, sample=True)
+                # print(outputs.type())
+
+                loss = F.nll_loss(outputs.mean(0), targets, reduction='sum')
                 _, pred = outputs.max(1)
                 hits = (pred == targets).float()
 

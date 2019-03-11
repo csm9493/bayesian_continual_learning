@@ -89,7 +89,7 @@ class BayesianNetwork(nn.Module):
         x = F.relu(self.l1(x, sample))
         # x = F.relu(self.l2(x, sample))
         x = self.l2(x, sample)
-        # x = F.log_softmax(x, dim=1)
+        x = F.log_softmax(x, dim=1)
         return x
     
     def variance_init(self):
@@ -106,8 +106,8 @@ class BayesianNetwork(nn.Module):
             outputs[i] = self(data, sample=True)
         # print(outputs.type())
 
-        # loss = F.nll_loss(outputs.mean(0), target, size_average=False)
-        loss = F.cross_entropy(outputs.mean(0), target, size_average=False, reduction='sum')
+        loss = F.nll_loss(outputs.mean(0), target, reduction='sum')
+        # loss = F.cross_entropy(outputs.mean(0), target, reduction='sum')
 
         return loss
     
