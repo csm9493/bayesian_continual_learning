@@ -234,9 +234,8 @@ class Appr(object):
         if isinstance(saver_net, Net) and isinstance(trainer_net, Net):
 
             # 각 모델에 module 접근
-            for saver_layer, trainer_layer in zip(saver_net.modules(), trainer_net.modules()):
+            for (_, saver_layer), (_, trainer_layer) in zip(saver_net.named_children(), trainer_net.named_children()):
                     # calculate mean regularization
-
                 trainer_mu = trainer_layer.weight_mu
                 saver_mu = saver_layer.weight_mu
 
