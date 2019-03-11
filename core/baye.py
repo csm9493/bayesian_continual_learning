@@ -105,8 +105,8 @@ class Appr(object):
             self.model_old = deepcopy(self.model)
             utils.freeze_model(self.model_old)  # Freeze the weights
 
-            for n, m in self.model.named_children():
-                print(n, m.weight.sigma.min())
+            # for n, m in self.model.named_children():
+            #     print(n, m.weight.sigma.min())
 
         # Restore best
         utils.set_model_(self.model, best_model)
