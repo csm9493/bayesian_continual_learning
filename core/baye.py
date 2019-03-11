@@ -103,7 +103,7 @@ class Appr(object):
             print()
 
             for n, m in self.model.named_children():
-                print(n, m.weight.sigma.mean())
+                print(n, m.weight.sigma.min())
 
             if e==3:
                 exit()
