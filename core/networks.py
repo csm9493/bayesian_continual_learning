@@ -31,16 +31,16 @@ class BayesianLinear(nn.Module):
             min_value_mu = -5
             max_value_mu = +5
             
-            min_value_rho = +1
-            max_value_rho = +1
+            min_value_rho = +3
+            max_value_rho = +3
             
         else:
         
             min_value_mu = 0
             max_value_mu = 0
             
-            min_value_rho = 1
-            max_value_rho = 1
+            min_value_rho = 3
+            max_value_rho = 3
             
         # Weight parameters
         self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(min_value_mu,max_value_mu))
@@ -64,8 +64,8 @@ class BayesianLinear(nn.Module):
 
     def variance_init(self):
         
-        min_value_rho = +1
-        max_value_rho = +1
+        min_value_rho = +3
+        max_value_rho = +3
         
         self.weight_rho.data = torch.Tensor(self.out_features, self.in_features).uniform_(min_value_rho,max_value_rho).cuda() # sigma >= 0
         self.bias_rho.data = torch.Tensor(self.out_features).uniform_(min_value_rho,max_value_rho).cuda()
@@ -89,7 +89,7 @@ class BayesianNetwork(nn.Module):
         x = F.relu(self.l1(x, sample))
         # x = F.relu(self.l2(x, sample))
         x = self.l2(x, sample)
-        # x = F.log_softmax(x, dim=1)
+        x = F.log_softmax(x, dim=1)
         return x
     
     def variance_init(self):
@@ -98,17 +98,16 @@ class BayesianNetwork(nn.Module):
         self.l2.variance_init()
         # self.l3.variance_init()
     
-    def sample_elbo(self, data, target, BATCH_SIZE, samples=2):
+    def sample_elbo(self, data, target, BATCH_SIZE, samples=10):
         # outputs = torch.zeros(samples, BATCH_SIZE, 10).to(DEVICE)
         outputs = torch.zeros(samples, BATCH_SIZE, 10).cuda()
 
         for i in range(samples):
             outputs[i] = self(data, sample=True)
-
         # print(outputs.type())
 
-        # loss = F.nll_loss(outputs.mean(0), target, size_average=False)
-        loss = F.cross_entropy(outputs.mean(0), target, size_average=False)
+        loss = F.nll_loss(outputs.mean(0), target, reduction='sum')
+        # loss = F.cross_entropy(outputs.mean(0), target, reduction='sum')
 
         return loss
     

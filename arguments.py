@@ -20,5 +20,6 @@ def get_args():
     parser.add_argument('--tasknum', default=10, type=int, help='(default=%(default)s)')
     parser.add_argument('--conv-net', action='store_true', default=False, help='Using convolution network')
     parser.add_argument('--parameter',type=str,default='',help='(default=%(default)s)')
+    parser.add_argument('--use-sigmamax', action='store_true', default=False, help='Using sigma max to support coefficient')
     args = parser.parse_args()
     return args

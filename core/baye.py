@@ -34,7 +34,7 @@ class Appr(object):
 
         # self.ce = torch.nn.CrossEntropyLoss()
         self.optimizer = self._get_optimizer()
-        self.lamb = args.lamb  # Grid search = [500,1000,2000,5000,10000,20000,50000]; best was 5000
+        self.lamb = args.lamb
         if len(args.parameter) >= 1:
             params = args.parameter.split(',')
             print('Setting parameters to', params)
@@ -59,7 +59,7 @@ class Appr(object):
             # Train
             clock0 = time.time()
 
-            self.model.variance_init()  # trainer net의 variance크게 init
+            # self.model.variance_init()  # trainer net의 variance크게 init
 
             # 1. trainer_net training 하는데 regularization을 위해서 saver_net의 정보 이용
 
@@ -102,6 +102,12 @@ class Appr(object):
                     self.optimizer = self._get_optimizer(lr)
             print()
 
+            self.model_old = deepcopy(self.model)
+            utils.freeze_model(self.model_old)  # Freeze the weights
+
+            # for n, m in self.model.named_children():
+            #     print(n, m.weight.sigma.min())
+
         # Restore best
         utils.set_model_(self.model, best_model)
 
@@ -129,7 +135,7 @@ class Appr(object):
             # outputs = self.model.forward(images)
             mini_batch_size = len(targets)
             loss = self.model.sample_elbo(images, targets, mini_batch_size)
-            loss = self.custom_regularization(self.model_old, self.model, mini_batch_size, self.lamb, loss)
+            loss = self.custom_regularization(self.model_old, self.model, mini_batch_size, loss)
 
             # for (n,p_old), (_, p) in zip(self.model_old.named_parameters(), self.model.named_parameters()):
             #     print(n, p_old.type(), p.type())
@@ -144,9 +150,6 @@ class Appr(object):
             self.optimizer.step()
 
             # 2. 1 batch가 끝나면 saver_net에 trainet_net을 복사 (weight = mean, sigma)
-
-            self.model_old = deepcopy(self.model)
-            utils.freeze_model(self.model_old)  # Freeze the weights
 
         # for batch_idx, (data, target) in enumerate(train_loader):
         #     data, target = data.to(DEVICE), target.to(DEVICE)
@@ -163,7 +166,7 @@ class Appr(object):
 
         return
 
-    def eval(self, x, y):
+    def eval(self, x, y, samples=10):
         total_loss = 0
         total_acc = 0
         total_num = 0
@@ -183,9 +186,14 @@ class Appr(object):
                 targets = y[b]
 
                 # Forward
-                outputs = self.model.forward(images)
-                loss = F.cross_entropy(outputs, targets, reduction='sum')
-                _, pred = outputs.max(1)
+                outputs = torch.zeros(samples, len(targets), 10).cuda()
+
+                for i in range(samples):
+                    outputs[i] = self.model(images, sample=True)
+                # print(outputs.type())
+
+                loss = F.nll_loss(outputs.mean(0), targets, reduction='sum')
+                _, pred = outputs.mean(0).max(1)
                 hits = (pred == targets).float()
 
                 # Log
@@ -224,43 +232,42 @@ class Appr(object):
 
 # custom regularization
 
-    def custom_regularization(self,saver_net, trainer_net, mini_batch_size, lambda_, loss=None):
+    def custom_regularization(self,saver_net, trainer_net, mini_batch_size, loss=None):
         mean_reg = 0
         sigma_reg = 0
 
         # net1, net2에서 각 레이어에 있는 mean, sigma를 이용하여 regularization 구현
 
-        # 각 모델에 module 접근
-        for saver, trainer in zip(saver_net.modules(), trainer_net.modules()):
+        # 만약 BayesianNetwork 이면
+        if isinstance(saver_net, Net) and isinstance(trainer_net, Net):
 
-            # 만약 BayesianNetwork 이면
-            if isinstance(saver, Net) and isinstance(trainer, Net):
-                i = 0
-
-                # Network 내부의 layer에 순차적으로 접근
-                for saver_layer, trainer_layer in zip(saver.layer_arr, trainer.layer_arr):
+            # 각 모델에 module 접근
+            for (_, saver_layer), (_, trainer_layer) in zip(saver_net.named_children(), trainer_net.named_children()):
                     # calculate mean regularization
+                trainer_mu = trainer_layer.weight_mu
+                saver_mu = saver_layer.weight_mu
 
-                    trainer_mu = trainer_layer.weight_mu
-                    saver_mu = saver_layer.weight_mu
+                trainer_sigma = torch.log1p(torch.exp(trainer_layer.weight_rho))
+                saver_sigma = torch.log1p(torch.exp(saver_layer.weight_rho))
 
-                    trainer_sigma = torch.log1p(torch.exp(trainer_layer.weight_rho))
-                    saver_sigma = torch.log1p(torch.exp(saver_layer.weight_rho))
+                # mean_reg += lambda_*(torch.div(trainer_layer.weight_mu, saver_layer.weight_rho)-torch.div(trainer_layer.weight_mu, trainer_layer.weight_rho)).norm(2)
+                mean_reg += (torch.div(trainer_mu, saver_sigma) - torch.div(saver_mu, saver_sigma)).norm(2)
 
-                    # mean_reg += lambda_*(torch.div(trainer_layer.weight_mu, saver_layer.weight_rho)-torch.div(trainer_layer.weight_mu, trainer_layer.weight_rho)).norm(2)
-                    mean_reg += lambda_ * (torch.div(trainer_mu, saver_sigma) - torch.div(saver_mu, saver_sigma)).norm(2)
+                if args.use_sigmamax:
+                    mean_reg = mean_reg * saver_sigma.max()
 
-                    # calculate sigma_reg regularization
+                # calculate sigma_reg regularization
 
-                    # sigma_reg += torch.sum(torch.div(trainer_layer.weight_rho, saver_layer.weight_rho) - torch.log(torch.div(trainer_layer.weight_rho, saver_layer.weight_rho)))
-                    sigma_reg += torch.sum(torch.div(trainer_sigma * trainer_sigma, saver_sigma * saver_sigma) - torch.log(
-                        torch.div(trainer_sigma * trainer_sigma, saver_sigma * saver_sigma)))
+                # sigma_reg += torch.sum(torch.div(trainer_layer.weight_rho, saver_layer.weight_rho) - torch.log(torch.div(trainer_layer.weight_rho, saver_layer.weight_rho)))
+                sigma_reg += torch.sum(torch.div(trainer_sigma **2 , saver_sigma **2) - torch.log(
+                    torch.div(trainer_sigma **2, saver_sigma **2)))
 
-                sigma_reg = sigma_reg / (mini_batch_size * 2)
-                mean_reg = mean_reg / (mini_batch_size * 2)
-                loss = loss / mini_batch_size
+            sigma_reg = sigma_reg / (mini_batch_size * 2)
+            mean_reg = mean_reg / (mini_batch_size * 2)
+
+            loss = loss / mini_batch_size
 
         #             print (mean_reg, sigma_reg) # regularization value 확인
-        loss = loss + mean_reg + sigma_reg
+        loss = loss + self.lamb * mean_reg + sigma_reg
 
         return loss
