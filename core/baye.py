@@ -34,7 +34,7 @@ class Appr(object):
 
         # self.ce = torch.nn.CrossEntropyLoss()
         self.optimizer = self._get_optimizer()
-        self.lamb = args.lamb  # Grid search = [500,1000,2000,5000,10000,20000,50000]; best was 5000
+        self.lamb = args.lamb
         if len(args.parameter) >= 1:
             params = args.parameter.split(',')
             print('Setting parameters to', params)
@@ -129,7 +129,7 @@ class Appr(object):
             # outputs = self.model.forward(images)
             mini_batch_size = len(targets)
             loss = self.model.sample_elbo(images, targets, mini_batch_size)
-            loss = self.custom_regularization(self.model_old, self.model, mini_batch_size, self.lamb, loss)
+            loss = self.custom_regularization(self.model_old, self.model, mini_batch_size, loss)
 
             # for (n,p_old), (_, p) in zip(self.model_old.named_parameters(), self.model.named_parameters()):
             #     print(n, p_old.type(), p.type())
@@ -224,7 +224,7 @@ class Appr(object):
 
 # custom regularization
 
-    def custom_regularization(self,saver_net, trainer_net, mini_batch_size, lambda_, loss=None):
+    def custom_regularization(self,saver_net, trainer_net, mini_batch_size, loss=None):
         mean_reg = 0
         sigma_reg = 0
 
@@ -248,7 +248,7 @@ class Appr(object):
                     saver_sigma = torch.log1p(torch.exp(saver_layer.weight_rho))
 
                     # mean_reg += lambda_*(torch.div(trainer_layer.weight_mu, saver_layer.weight_rho)-torch.div(trainer_layer.weight_mu, trainer_layer.weight_rho)).norm(2)
-                    mean_reg += lambda_ * (torch.div(trainer_mu, saver_sigma) - torch.div(saver_mu, saver_sigma)).norm(2)
+                    mean_reg += (torch.div(trainer_mu, saver_sigma) - torch.div(saver_mu, saver_sigma)).norm(2)
 
                     # calculate sigma_reg regularization
 
@@ -261,6 +261,6 @@ class Appr(object):
                 loss = loss / mini_batch_size
 
         #             print (mean_reg, sigma_reg) # regularization value 확인
-        loss = loss + mean_reg + sigma_reg
+        loss = loss + self.lamb * mean_reg + sigma_reg
 
         return loss
