@@ -50,7 +50,7 @@ class BayesianLinear(nn.Module):
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
         # Bias parameters
         self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(min_value_mu,max_value_mu))
-        nn.init.kaiming_uniform(self.bias_mu, mode='fan_in', nonlinearity='relu')
+        # nn.init.kaiming_uniform(self.bias_mu, mode='fan_in', nonlinearity='relu')
 
         self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(min_value_rho,max_value_rho))
         self.bias = Gaussian(self.bias_mu, self.bias_rho)
