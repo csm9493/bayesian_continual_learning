@@ -30,8 +30,8 @@ class BayesianLinear(nn.Module):
             
             min_value_mu = -5
             max_value_mu = +5
-            min_value_rho = +0.06
-            max_value_rho = +0.06
+            min_value_rho = +3
+            max_value_rho = +3
             
         else:
         
