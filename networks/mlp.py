@@ -12,13 +12,13 @@ class Net(torch.nn.Module):
         self.taskcla=taskcla
         # self.relu=torch.nn.ReLU()
         # self.drop=torch.nn.Dropout(0.5)
-        self.fc1=torch.nn.Linear(ncha*size*size,400)
+        self.fc1=torch.nn.Linear(ncha*size*size,200)
         # self.fc2=torch.nn.Linear(400,400)
 #         self.fc3=torch.nn.Linear(800,800)
 #         self.last=torch.nn.ModuleList()
 #         for t,n in self.taskcla:
 #             self.last.append(torch.nn.Linear(400,n))
-        self.last=torch.nn.Linear(400,10)
+        self.last=torch.nn.Linear(200,10)
 
 
     def forward(self,x):

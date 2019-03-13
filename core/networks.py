@@ -30,9 +30,8 @@ class BayesianLinear(nn.Module):
             
             min_value_mu = -5
             max_value_mu = +5
-            
-            min_value_rho = +3
-            max_value_rho = +3
+            min_value_rho = +0.06
+            max_value_rho = +0.06
             
         else:
         
@@ -43,11 +42,16 @@ class BayesianLinear(nn.Module):
             max_value_rho = 3
             
         # Weight parameters
-        self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(min_value_mu,max_value_mu))
+        # self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(min_value_mu,max_value_mu))
+        self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features))
+        nn.init.kaiming_uniform(self.weight_mu, mode='fan_in', nonlinearity='relu')
+
         self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(min_value_rho,max_value_rho)) # sigma >= 0
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
         # Bias parameters
         self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(min_value_mu,max_value_mu))
+        nn.init.kaiming_uniform(self.bias_mu, mode='fan_in', nonlinearity='relu')
+
         self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(min_value_rho,max_value_rho))
         self.bias = Gaussian(self.bias_mu, self.bias_rho)
 
@@ -77,8 +81,8 @@ class BayesianNetwork(nn.Module):
         ncha,size,_=inputsize
         self.taskcla=taskcla
 
-        self.l1 = BayesianLinear(28*28, 400, init_type)
-        self.l2 = BayesianLinear(400, 10, init_type)
+        self.l1 = BayesianLinear(28*28, 200, init_type)
+        self.l2 = BayesianLinear(200, 10, init_type)
         # self.l3 = BayesianLinear(400, 10, init_type)
         
         # self.layer_arr = [self.l1, self.l2, self.l3,]
