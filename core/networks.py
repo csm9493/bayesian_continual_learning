@@ -81,8 +81,8 @@ class BayesianNetwork(nn.Module):
         ncha,size,_=inputsize
         self.taskcla=taskcla
 
-        self.l1 = BayesianLinear(28*28, 200, init_type)
-        self.l2 = BayesianLinear(200, 10, init_type)
+        self.l1 = BayesianLinear(28*28, 400, init_type)
+        self.l2 = BayesianLinear(400, 10, init_type)
         # self.l3 = BayesianLinear(400, 10, init_type)
         
         # self.layer_arr = [self.l1, self.l2, self.l3,]
