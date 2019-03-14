@@ -10,7 +10,7 @@ tstart = time.time()
 # Arguments
 
 args = get_args()
-log_name = '{}_{}_{}_{}_{}_lamb_{}_{}'.format(args.date, args.experiment, args.tasknum, args.approach, args.seed,
+log_name = '{}_{}_{}_{}_{}_lamb_{}_{}'.format(args.date, args.experiment, args.tasknum, args.approach, args.lr,
                                               args.lamb, args.nepochs)
 if args.use_sigmamax:
     log_name += '_sigmamax'
