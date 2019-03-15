@@ -214,6 +214,7 @@ for i in range(acc.shape[0]):
     print()
 print('*' * 100)
 print('Done!')
+print('Hong!')
 
 print('[Elapsed time = {:.1f} h]'.format((time.time() - tstart) / (60 * 60)))
 
