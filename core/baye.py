@@ -16,7 +16,7 @@ from core.networks import BayesianNetwork as Net
 class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
 
-    def __init__(self, model, model_old, nepochs=100, sbatch=64, lr=0.05, lr_min=1e-4, lr_factor=3, lr_patience=5, clipgrad=100,
+    def __init__(self, model, model_old, nepochs=100, sbatch=64, lr=0.01, lr_min=1e-4, lr_factor=3, lr_patience=5, clipgrad=100,
                  args=None, log_name=None):
         self.model = model
         self.model_old = model_old
@@ -268,6 +268,6 @@ class Appr(object):
             loss = loss / mini_batch_size
 
         #             print (mean_reg, sigma_reg) # regularization value 확인
-        loss = loss + self.lamb * mean_reg + sigma_reg
+        loss = loss + self.lamb * (mean_reg + sigma_reg)
 
         return loss

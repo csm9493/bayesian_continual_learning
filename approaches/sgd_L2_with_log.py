@@ -14,7 +14,7 @@ else:
 
 class Appr(object):
 
-    def __init__(self,model,nepochs=100,sbatch=64,lr=0.05,lr_min=1e-4,lr_factor=3,lr_patience=5,clipgrad=10000,args=None, log_name=None):
+    def __init__(self,model,nepochs=100,sbatch=64,lr=0.01,lr_min=1e-4,lr_factor=3,lr_patience=5,clipgrad=10000,args=None, log_name=None):
         self.model=model
 
         self.nepochs=nepochs
@@ -84,13 +84,13 @@ class Appr(object):
                     self.optimizer=self._get_optimizer(lr)
             print()
 
+            self.model_old = Net(input_size, taskcla).cuda()
+            self.model_old.load_state_dict(self.model.state_dict())
+            utils.freeze_model(self.model_old)  # Freeze the weights
+
         # Restore best
         utils.set_model_(self.model,best_model)
         self.logger.save()
-        
-        self.model_old = Net(input_size, taskcla).cuda()
-        self.model_old.load_state_dict(self.model.state_dict())
-        utils.freeze_model(self.model_old) # Freeze the weights
         
         return
 
