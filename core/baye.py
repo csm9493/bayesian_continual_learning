@@ -268,6 +268,6 @@ class Appr(object):
             loss = loss / mini_batch_size
 
         #             print (mean_reg, sigma_reg) # regularization value 확인
-        loss = loss + self.lamb * (mean_reg + sigma_reg)
+        loss = loss + self.lamb * mean_reg + sigma_reg
 
         return loss
