@@ -136,7 +136,7 @@ print('Input size =', inputsize, '\nTask info =', taskcla)
 print('Inits...')
 # print (inputsize,taskcla)
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
-if args.approach == 'baye' or args.approach == 'baye_hat':
+if args.approach == 'baye' or args.approach == 'baye_hat' or args.approach =='baye_fisher':
     net = network.BayesianNetwork(inputsize, taskcla, init_type='random').cuda()
     net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero').cuda()
     appr = approach.Appr(net, net_old, nepochs=args.nepochs, lr=args.lr, args=args, log_name=log_name)
