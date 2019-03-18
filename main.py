@@ -192,7 +192,7 @@ for t, ncla in taskcla:
     for u in range(t + 1):
         xtest = data[u]['test']['x'].cuda()
         ytest = data[u]['test']['y'].cuda()
-        if args.approach == 'baye' or args.approach == 'baye_hat':
+        if args.approach == 'baye' or args.approach == 'baye_hat' or args.approach == 'baye_fisher':
             test_loss, test_acc = appr.eval(xtest, ytest)
         else:
             test_loss, test_acc = appr.eval(u, xtest, ytest)
