@@ -60,6 +60,8 @@ elif args.approach == 'baye':
     from core import baye as approach
 elif args.approach == 'baye_hat':
     from core import baye_hat as approach
+elif args.approach == 'baye_fisher':
+    from core import baye_fisher as approach
 elif args.approach == 'sgd':
     from approaches import sgd as approach
 elif args.approach == 'sgd-restart':
@@ -99,7 +101,7 @@ elif args.approach == 'joint':
 if args.experiment == 'mnist2' or args.experiment == 'pmnist' or args.experiment == 'pmnist2' or args.experiment == 'pmnist2_task15' or args.experiment == 'pmnist2_task50':
     if args.approach == 'hat' or args.approach == 'hat-test':
         from networks import mlp_hat as network
-    elif args.approach == 'baye' or args.approach == 'baye_hat':
+    elif args.approach == 'baye' or args.approach == 'baye_hat' or args.approach == 'baye_fisher':
         if args.conv_net:
             from core import conv_network as network
         else:
