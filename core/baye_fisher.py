@@ -20,6 +20,7 @@ class Appr(object):
                  args=None, log_name=None):
         self.model = model
         self.model_old = model_old
+        self.fisher=None
 
         file_name = log_name
         self.logger = utils.logger(file_name=file_name, resume=False, path='./result_data/csvdata/', data_format='csv')
@@ -32,19 +33,19 @@ class Appr(object):
         self.lr_patience = lr_patience
         self.clipgrad = clipgrad
 
-        # self.ce = torch.nn.CrossEntropyLoss()
-        self.optimizer = self._get_optimizer()
-        self.lamb = args.lamb
-        if len(args.parameter) >= 1:
-            params = args.parameter.split(',')
-            print('Setting parameters to', params)
-            self.lamb = float(params[0])
+        self.ce=torch.nn.CrossEntropyLoss()
+        self.optimizer=self._get_optimizer()
+        self.lamb=args.lamb                      # Grid search = [500,1000,2000,5000,10000,20000,50000]; best was 5000
+        if len(args.parameter)>=1:
+            params=args.parameter.split(',')
+            print('Setting parameters to',params)
+            self.lamb=float(params[0])
 
         return
 
-    def _get_optimizer(self, lr=None):
-        if lr is None: lr = self.lr
-        return torch.optim.SGD(self.model.parameters(), lr=lr)
+    def _get_optimizer(self,lr=None):
+        if lr is None: lr=self.lr
+        return torch.optim.SGD(self.model.parameters(),lr=lr)
 
     def train(self, t, xtrain, ytrain, xvalid, yvalid, data, input_size, taskcla):
         best_loss = np.inf
@@ -63,7 +64,7 @@ class Appr(object):
 
             # 1. trainer_net training 하는데 regularization을 위해서 saver_net의 정보 이용
 
-            self.train_epoch(xtrain, ytrain)
+            self.train_epoch(t, xtrain, ytrain)
 
             clock1 = time.time()
             train_loss, train_acc = self.eval(xtrain, ytrain)
@@ -113,9 +114,21 @@ class Appr(object):
 
         self.logger.save()
 
+        # Fisher ops
+        if t>0:
+            fisher_old={}
+            for n,_ in self.model.named_parameters():
+                fisher_old[n]=self.fisher[n].clone()
+        self.fisher=utils.fisher_matrix_diag(t,xtrain,ytrain,self.model,self.criterion)
+        if t>0:
+            # Watch out! We do not want to keep t models (or fisher diagonals) in memory, therefore we have to merge fisher diagonals
+            for n,_ in self.model.named_parameters():
+                self.fisher[n]=(self.fisher[n]+fisher_old[n]*t)/(t+1)       # Checked: it is better than the other option
+                #self.fisher[n]=0.5*(self.fisher[n]+fisher_old[n])
+
         return
 
-    def train_epoch(self, x, y):
+    def train_epoch(self,t, x, y):
         self.model.train()
 
         r = np.arange(x.size(0))
@@ -135,7 +148,7 @@ class Appr(object):
             # outputs = self.model.forward(images)
             mini_batch_size = len(targets)
             loss = self.model.sample_elbo(images, targets, mini_batch_size)
-            loss = self.custom_regularization(self.model_old, self.model, mini_batch_size, loss)
+            loss = self.custom_regularization(t, self.model_old, self.model, mini_batch_size, loss)
 
             # for (n,p_old), (_, p) in zip(self.model_old.named_parameters(), self.model.named_parameters()):
             #     print(n, p_old.type(), p.type())
@@ -218,21 +231,17 @@ class Appr(object):
 
     def criterion(self, t, output, targets):
         # Regularization for all previous tasks
-        loss_reg = 0
-        if t > 0:
-            for (name, param), (_, param_old) in zip(self.model.named_parameters(), self.model_old.named_parameters()):
-                #                 if name.startswith('last'):
-                #                     if not args.no_outputreg:
-                #                         loss_reg+=torch.sum(self.fisher[name]*(param_old-param).pow(2))/2
-                #                 else:
-                loss_reg += torch.sum(self.fisher[name] * (param_old - param).pow(2)) / 2
 
-        return self.ce(output, targets) + self.lamb * loss_reg
+        mini_batch_size = len(targets)
+        loss = F.nll_loss(output, targets, reduction='sum')/len(targets)
+        loss = self.custom_regularization(t, self.model_old, self.model, mini_batch_size, loss)
+
+        return loss
 
 
 # custom regularization
 
-    def custom_regularization(self,saver_net, trainer_net, mini_batch_size, loss=None):
+    def custom_regularization(self,t, saver_net, trainer_net, mini_batch_size, loss=None):
         mean_reg = 0
         sigma_reg = 0
 
@@ -242,7 +251,7 @@ class Appr(object):
         if isinstance(saver_net, Net) and isinstance(trainer_net, Net):
 
             # 각 모델에 module 접근
-            for (_, saver_layer), (_, trainer_layer) in zip(saver_net.named_children(), trainer_net.named_children()):
+            for (n, saver_layer), (_, trainer_layer) in zip(saver_net.named_children(), trainer_net.named_children()):
                     # calculate mean regularization
                 trainer_mu = trainer_layer.weight_mu
                 saver_mu = saver_layer.weight_mu
@@ -251,7 +260,10 @@ class Appr(object):
                 saver_sigma = torch.log1p(torch.exp(saver_layer.weight_rho))
 
                 # mean_reg += lambda_*(torch.div(trainer_layer.weight_mu, saver_layer.weight_rho)-torch.div(trainer_layer.weight_mu, trainer_layer.weight_rho)).norm(2)
-                mean_reg += (torch.div(trainer_mu, saver_sigma) - torch.div(saver_mu, saver_sigma)).norm(2)
+                if t ==0:
+                    mean_reg += (torch.div(trainer_mu, saver_sigma) - torch.div(saver_mu, saver_sigma)).norm(2)
+                else:
+                    mean_reg += (torch.div(trainer_mu * self.fisher[n+'.weight_mu'], saver_sigma) - torch.div(saver_mu * self.fisher[n+'.weight_mu'], saver_sigma)).norm(2)
 
                 if args.use_sigmamax:
                     mean_reg = mean_reg * saver_sigma.max()

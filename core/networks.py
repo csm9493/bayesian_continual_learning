@@ -83,16 +83,16 @@ class BayesianNetwork(nn.Module):
 
         self.l1 = BayesianLinear(28*28, 400, init_type)
         self.l2 = BayesianLinear(400, 10, init_type)
-        # self.l3 = BayesianLinear(400, 10, init_type)
+        # self.l3 = BayesianLinear(200, 10, init_type)
         
         # self.layer_arr = [self.l1, self.l2, self.l3,]
-        self.layer_arr = [self.l1, self.l2, ]
+        # self.layer_arr = [self.l1, self.l2, ]
 
     def forward(self, x, sample=False):
         x = x.view(-1, 28*28)
         x = F.relu(self.l1(x, sample))
-        # x = F.relu(self.l2(x, sample))
         x = self.l2(x, sample)
+        # x = self.l3(x, sample)
         x = F.log_softmax(x, dim=1)
         return x
     

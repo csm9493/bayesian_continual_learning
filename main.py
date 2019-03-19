@@ -10,7 +10,7 @@ tstart = time.time()
 # Arguments
 
 args = get_args()
-log_name = '{}_{}_{}_{}_{}_lamb_{}_{}'.format(args.date, args.experiment, args.tasknum, args.approach, args.seed,
+log_name = '{}_{}_{}_{}_{}_lamb_{}_{}'.format(args.date, args.experiment, args.tasknum, args.approach, args.lr,
                                               args.lamb, args.nepochs)
 if args.use_sigmamax:
     log_name += '_sigmamax'
@@ -60,6 +60,8 @@ elif args.approach == 'baye':
     from core import baye as approach
 elif args.approach == 'baye_hat':
     from core import baye_hat as approach
+elif args.approach == 'baye_fisher':
+    from core import baye_fisher as approach
 elif args.approach == 'sgd':
     from approaches import sgd as approach
 elif args.approach == 'sgd-restart':
@@ -99,7 +101,7 @@ elif args.approach == 'joint':
 if args.experiment == 'mnist2' or args.experiment == 'pmnist' or args.experiment == 'pmnist2' or args.experiment == 'pmnist2_task15' or args.experiment == 'pmnist2_task50':
     if args.approach == 'hat' or args.approach == 'hat-test':
         from networks import mlp_hat as network
-    elif args.approach == 'baye' or args.approach == 'baye_hat':
+    elif args.approach == 'baye' or args.approach == 'baye_hat' or args.approach == 'baye_fisher':
         if args.conv_net:
             from core import conv_network as network
         else:
@@ -134,7 +136,7 @@ print('Input size =', inputsize, '\nTask info =', taskcla)
 print('Inits...')
 # print (inputsize,taskcla)
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
-if args.approach == 'baye' or args.approach == 'baye_hat':
+if args.approach == 'baye' or args.approach == 'baye_hat' or args.approach =='baye_fisher':
     net = network.BayesianNetwork(inputsize, taskcla, init_type='random').cuda()
     net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero').cuda()
     appr = approach.Appr(net, net_old, nepochs=args.nepochs, lr=args.lr, args=args, log_name=log_name)
@@ -190,7 +192,7 @@ for t, ncla in taskcla:
     for u in range(t + 1):
         xtest = data[u]['test']['x'].cuda()
         ytest = data[u]['test']['y'].cuda()
-        if args.approach == 'baye' or args.approach == 'baye_hat':
+        if args.approach == 'baye' or args.approach == 'baye_hat' or args.approach == 'baye_fisher':
             test_loss, test_acc = appr.eval(xtest, ytest)
         else:
             test_loss, test_acc = appr.eval(u, xtest, ytest)
