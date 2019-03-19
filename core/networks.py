@@ -42,9 +42,9 @@ class BayesianLinear(nn.Module):
             max_value_rho = 3
             
         # Weight parameters
-        # self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(min_value_mu,max_value_mu))
-        self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features))
-        nn.init.kaiming_uniform(self.weight_mu, mode='fan_in', nonlinearity='relu')
+        self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(min_value_mu,max_value_mu))
+        # self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features))
+        # nn.init.kaiming_uniform(self.weight_mu, mode='fan_in', nonlinearity='relu')
 
         self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(min_value_rho,max_value_rho)) # sigma >= 0
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
