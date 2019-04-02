@@ -110,6 +110,7 @@ class BayesianNetwork(nn.Module):
         self.layer_arr = [self.l1, self.l2, self.l3, self.a1, self.a2, self.a3]
 #         self.layer_arr = [self.l1, self.l2, ]
 
+
     def forward(self, x, sample=False, saver_net = None, attention = False, s = 1):
         # def forward(self, input, saver_std, trainer_std, attention, s)
         x = x.view(-1, 28*28)
@@ -135,6 +136,7 @@ class BayesianNetwork(nn.Module):
             mask = self.a3(x, saver_std, trainer_std, mask, s)
             self.mask3 = mask
             x = x*mask
+
         x = F.log_softmax(x, dim=1)
         return x
     
