@@ -21,5 +21,9 @@ def get_args():
     parser.add_argument('--conv-net', action='store_true', default=False, help='Using convolution network')
     parser.add_argument('--parameter',type=str,default='',help='(default=%(default)s)')
     parser.add_argument('--use-sigmamax', action='store_true', default=False, help='Using sigma max to support coefficient')
+    parser.add_argument('--use-Bernoulli', action='store_true', default=False, help='Using binary variable sampling to freeze')
+    parser.add_argument('--use-Attention', action='store_true', default=False, help='Using Attention Mechanism to freeze')
+    parser.add_argument('--sample', type = int, default=5, help='Using sigma max to support coefficient')
+    parser.add_argument('--rho', type = float, default=-5.0, help='initial rho')
     args = parser.parse_args()
     return args
