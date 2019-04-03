@@ -22,6 +22,12 @@ if args.use_Bernoulli:
 if args.use_Attention:
     log_name += '_Attention'
 
+if args.use_Dropout:
+    log_name += '_Dropout'
+
+if args.no_sigma_reg:
+    log_name += 'no_sigma_reg'
+    
 if args.conv_net:
     log_name = log_name + '_conv'
 
@@ -142,8 +148,8 @@ print('Inits...')
 # print (inputsize,taskcla)
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 if args.approach == 'baye' or args.approach == 'baye_hat':
-    net = network.BayesianNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho).cuda()
-    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho).cuda()
+    net = network.BayesianNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho, dropout = args.use_Dropout).cuda()
+    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho, dropout = args.use_Dropout).cuda()
     appr = approach.Appr(net, net_old, nepochs=args.nepochs, sample = args.sample, lr=args.lr, args=args, log_name=log_name)
 else:
     net = network.Net(inputsize, taskcla).cuda()

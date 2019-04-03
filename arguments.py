@@ -23,6 +23,8 @@ def get_args():
     parser.add_argument('--use-sigmamax', action='store_true', default=False, help='Using sigma max to support coefficient')
     parser.add_argument('--use-Bernoulli', action='store_true', default=False, help='Using binary variable sampling to freeze')
     parser.add_argument('--use-Attention', action='store_true', default=False, help='Using Attention Mechanism to freeze')
+    parser.add_argument('--use-Dropout', action='store_true', default=False, help='Use Dropout')
+    parser.add_argument('--no-sigma-reg', action='store_true', default=False, help='No Sigma Regularization')
     parser.add_argument('--sample', type = int, default=5, help='Using sigma max to support coefficient')
     parser.add_argument('--rho', type = float, default=-5.0, help='initial rho')
     args = parser.parse_args()

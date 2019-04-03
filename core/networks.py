@@ -64,7 +64,7 @@ class BayesianLinear(nn.Module):
         
         #self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(-2.783,-2.783))
         self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(rho_init,rho_init))
-        #self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(0.06,0.06))
+        #self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(0.06,0.06)).clamp(1e-8,1)
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
         
         # Bias parameters        
@@ -72,7 +72,7 @@ class BayesianLinear(nn.Module):
         
         #self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(-2.783,-2.783))
         self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(rho_init,rho_init))
-        #self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(0.06,0.06))
+        #self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(0.06,0.06)).clamp(1e-8,1)
         self.bias = Gaussian(self.bias_mu, self.bias_rho)
 
 
@@ -95,12 +95,11 @@ class BayesianLinear(nn.Module):
         self.bias_rho.data = torch.Tensor(self.out_features).uniform_(min_value_rho,max_value_rho).cuda()
 
 class BayesianNetwork(nn.Module):
-    def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -5):
+    def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -5, dropout = False):
         super().__init__()
 
         ncha,size,_=inputsize
         self.taskcla=taskcla
-
         self.l1 = BayesianLinear(28*28, 400, init_type, rho_init)
         self.a1 = AttentionLinear(28*28)
         self.l2 = BayesianLinear(400, 400, init_type, rho_init)
@@ -113,28 +112,33 @@ class BayesianNetwork(nn.Module):
     def forward(self, x, sample=False, saver_net = None, attention = False, s = 1):
         # def forward(self, input, saver_std, trainer_std, attention, s)
         x = x.view(-1, 28*28)
-        x = F.relu(self.l1(x, sample))
-        saver_std = torch.log1p(torch.exp(self.l1.weight_rho))
+
         if attention:
             saver_std = torch.log1p(torch.exp(saver_net.l1.weight_rho))
             trainer_std = torch.log1p(torch.exp(self.l1.weight_rho))
             mask = self.a1(x, saver_std, trainer_std, torch.ones(28*28), s)
             self.mask1 = mask
             x = x*mask
-        x = F.relu(self.l2(x, sample))
+
+        x = F.relu(self.l1(x, sample))
+        
         if attention:
             saver_std = torch.log1p(torch.exp(saver_net.l2.weight_rho))
             trainer_std = torch.log1p(torch.exp(self.l2.weight_rho))
             mask = self.a2(x, saver_std, trainer_std, mask, s)
             self.mask2 = mask
             x = x*mask
-        x = self.l3(x, sample)
+        
+        x = F.relu(self.l2(x, sample))
+            
         if attention:
             saver_std = torch.log1p(torch.exp(saver_net.l3.weight_rho))
             trainer_std = torch.log1p(torch.exp(self.l3.weight_rho))
             mask = self.a3(x, saver_std, trainer_std, mask, s)
             self.mask3 = mask
             x = x*mask
+        x = self.l3(x, sample)
+        
         x = F.log_softmax(x, dim=1)
         return x
     

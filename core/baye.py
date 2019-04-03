@@ -11,7 +11,8 @@ from arguments import get_args
 args = get_args()
 
 from core.networks import BayesianNetwork as Net
-from core.networks import AttentionLinear 
+from core.networks import AttentionLinear
+from core.networks import BayesianLinear as BL
 
 
 class Appr(object):
@@ -53,19 +54,19 @@ class Appr(object):
     
     def Bernoulli_freeze(self,i):
         for (_, saver_layer), (_, trainer_layer) in zip(self.model_old.named_children(), self.model.named_children()):
-            if isinstance(saver_layer, AttentionLinear) and isinstance(trainer_layer, AttentionLinear):
-                continue
-            rho_saver = saver_layer.weight_rho
-            a, b = 1000, -0.0595
-            probs = torch.sigmoid(a * (rho_saver + b))
-            Bern = torch.distributions.bernoulli.Bernoulli(probs)
-            mask = Bern.sample()
-            #trainer_layer.weight_mu.grad *= mask
-            trainer_layer.weight_mu.grad *= probs
-            """
-            if i==self.sbatch:
-                print(trainer_layer.weight_mu.grad)
-            """
+            if isinstance(saver_layer, BL) and isinstance(trainer_layer, BL):
+                
+                rho_saver = saver_layer.weight_rho
+                a, b = 1000, -0.0595
+                probs = torch.sigmoid(a * (rho_saver + b))
+                Bern = torch.distributions.bernoulli.Bernoulli(probs)
+                mask = Bern.sample()
+                #trainer_layer.weight_mu.grad *= mask
+                trainer_layer.weight_mu.grad *= probs
+                """
+                if i==self.sbatch:
+                    print(trainer_layer.weight_mu.grad)
+                """
         
         return
     
@@ -94,7 +95,14 @@ class Appr(object):
         for i in range(len(min_arr)):
             f.write('%f '%(min_arr[i]))
 
-        f.write('\n min idx std:\n')
+        f.write(' minimum std reg strength:\n')
+        for i in range(len(min_arr)):
+            lamb = self.lamb
+            if args.use_sigmamax:
+                lamb = lamb * ()
+            f.write('%f '%(min_arr[i]))    
+        
+        f.write('\n min idx:\n')
         for i in range(len(min_arr)):
             f.write('%d '%(min_idx_arr[i]))
 
@@ -102,7 +110,7 @@ class Appr(object):
         for i in range(len(min_arr)):
             f.write('%f '%(max_arr[i]))
 
-        f.write('\n max idx std:\n')
+        f.write('\n max idx:\n')
         for i in range(len(min_arr)):
             f.write('%d '%(max_idx_arr[i]))
 
@@ -177,6 +185,7 @@ class Appr(object):
             #self.print_log(e)
             
             
+            
             # for n, m in self.model.named_children():
             #     print(n, m.weight.sigma.min())
 
@@ -231,12 +240,11 @@ class Appr(object):
             f = open(self.args.output + '_std_value.txt','a')
             min_arr = []
             for (_, layer) in self.model.named_children():
-                if isinstance(layer, AttentionLinear):
-                    continue
-                rho = torch.log1p(torch.exp(layer.weight_rho))
-                rho = rho.data.cpu().numpy()
-                f.write('%f '%(np.min(rho)))
-
+                if isinstance(layer, BL):
+                    rho = torch.log1p(torch.exp(layer.weight_rho))
+                    rho = rho.data.cpu().numpy()
+                    f.write('%f '%(np.min(rho)))
+                    
             f.write('\n')
             f.flush()
             
@@ -330,7 +338,11 @@ class Appr(object):
         mean_bias_reg = 0
         sigma_weight_reg = 0
         sigma_bias_reg = 0
-        
+        mean_sigma = 0
+        min_sigma = 0
+        sig_max = 0
+        mean_weight_reg_sum = 0
+        mean_bias_reg_sum = 0
         # net1, net2에서 각 레이어에 있는 mean, sigma를 이용하여 regularization 구현
 
         # 만약 BayesianNetwork 이면
@@ -344,48 +356,51 @@ class Appr(object):
                 # calculate mean regularization
                 trainer_weight_mu = trainer_layer.weight_mu
                 saver_weight_mu = saver_layer.weight_mu
-                
+
                 trainer_bias_mu = trainer_layer.bias_mu
                 saver_bias_mu = saver_layer.bias_mu
-                
+
 #                 trainer_weight_sigma = trainer_layer.weight_rho
 #                 saver_weight_sigma = saver_layer.weight_rho
-                
+
 #                 trainer_bias_sigma = trainer_layer.bias_rho
 #                 saver_bias_sigma = saver_layer.bias_rho
-                
+
                 trainer_weight_sigma = torch.log1p(torch.exp(trainer_layer.weight_rho))
                 saver_weight_sigma = torch.log1p(torch.exp(saver_layer.weight_rho))
 
                 trainer_bias_sigma = torch.log1p(torch.exp(trainer_layer.bias_rho))
                 saver_bias_sigma = torch.log1p(torch.exp(saver_layer.bias_rho))
-                
-                mean_weight_reg += (torch.div(trainer_weight_mu, saver_weight_sigma) - torch.div(saver_weight_mu, saver_weight_sigma)).norm(2)**2
-                mean_bias_reg += (torch.div(trainer_bias_mu, saver_bias_sigma) - torch.div(saver_bias_mu, saver_bias_sigma)).norm(2)**2
+
+                mean_weight_reg = (torch.div(trainer_weight_mu, saver_weight_sigma) - torch.div(saver_weight_mu, saver_weight_sigma)).norm(2)**2
+                mean_bias_reg = (torch.div(trainer_bias_mu, saver_bias_sigma) - torch.div(saver_bias_mu, saver_bias_sigma)).norm(2)**2
 
                 if args.use_sigmamax:
+                    sig_max = 
                     mean_weight_reg = mean_weight_reg * ((saver_weight_sigma.max())**2)
                     mean_bias_reg = mean_bias_reg * ((saver_bias_sigma.max())**2)
 
+                mean_sigma = saver_weight_sigma.mean()
+                min_sigma = saver_weight_sigma.min()
                 # calculate sigma_reg regularization
 
                 # sigma_reg += torch.sum(torch.div(trainer_layer.weight_rho, saver_layer.weight_rho) - torch.log(torch.div(trainer_layer.weight_rho, saver_layer.weight_rho)))
-                sigma_weight_reg += torch.sum(torch.div(trainer_weight_sigma **2 , saver_weight_sigma **2) - torch.log(
-                    torch.div(trainer_weight_sigma **2, saver_weight_sigma **2)))
-                sigma_bias_reg += torch.sum(torch.div(trainer_bias_sigma **2 , saver_bias_sigma **2) - torch.log(
-                    torch.div(trainer_bias_sigma **2, saver_bias_sigma **2)))
+                
+                if args.no_sigma_reg == False:
+                    sigma_weight_reg += torch.sum(torch.div(trainer_weight_sigma **2 , saver_weight_sigma **2) - torch.log(
+                        torch.div(trainer_weight_sigma **2, saver_weight_sigma **2)))
+                    sigma_bias_reg += torch.sum(torch.div(trainer_bias_sigma **2 , saver_bias_sigma **2) - torch.log(
+                        torch.div(trainer_bias_sigma **2, saver_bias_sigma **2)))
 
-            mean_weight_reg = mean_weight_reg / (mini_batch_size * 2)
-            mean_bias_reg = mean_bias_reg / (mini_batch_size * 2)
-            
-            sigma_weight_reg = sigma_weight_reg / (mini_batch_size * 2)
-            sigma_bias_reg = sigma_bias_reg / (mini_batch_size * 2)
 
-            loss = loss / mini_batch_size
+                mean_weight_reg_sum += mean_weight_reg
+                mean_bias_reg_sum += mean_bias_reg
 
         #             print (mean_reg, sigma_reg) # regularization value 확인
-        f = open('reg_log.txt','a')
-        f.write('%f\n'%(mean_weight_reg))
-        loss = loss + self.lamb * mean_weight_reg + self.lamb * mean_bias_reg + sigma_weight_reg + sigma_bias_reg
+        
+        f = open('reg_strength.txt','a')
+        f.write('%.10f\n'%(self.lamb / (min_sigma ** 2)))
+        f.flush()
+        loss = loss / mini_batch_size + (self.lamb * (mean_weight_reg_sum + mean_bias_reg_sum) + (sigma_weight_reg + sigma_bias_reg)) /(mini_batch_size * 2)
 
         return loss

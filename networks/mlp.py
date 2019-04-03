@@ -10,7 +10,7 @@ class Net(torch.nn.Module):
 
         ncha,size,_=inputsize
         self.taskcla=taskcla
-        # self.relu=torch.nn.ReLU()
+        self.relu=torch.nn.ReLU()
         self.drop=torch.nn.Dropout(0.5)
         self.fc1=torch.nn.Linear(ncha*size*size,400)
         self.fc2=torch.nn.Linear(400,400)
@@ -25,7 +25,7 @@ class Net(torch.nn.Module):
         h=x.view(x.size(0),-1)
         h=F.relu(self.fc1(h))
         h=self.relu(self.fc2(h))
-        h=self.drop(self.relu(self.fc3(h)))
+        #h=self.drop(self.relu(self.fc3(h)))
 #         y=[]
 #         for t,i in self.taskcla:
 #             y.append(self.last[t](h))
