@@ -14,6 +14,7 @@ class Net(torch.nn.Module):
         self.drop=torch.nn.Dropout(0.5)
         self.fc1=torch.nn.Linear(ncha*size*size,400)
         self.fc2=torch.nn.Linear(400,400)
+
 #         self.fc3=torch.nn.Linear(800,800)
 #         self.last=torch.nn.ModuleList()
 #         for t,n in self.taskcla:

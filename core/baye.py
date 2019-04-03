@@ -19,6 +19,7 @@ class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
 
     def __init__(self, model, model_old, nepochs=100, sbatch=64, sample = 5, lr=0.01, lr_min=1e-4, lr_factor=3, lr_patience=5, clipgrad=100, args=None, log_name=None):
+   
         self.model = model
         self.model_old = model_old
 

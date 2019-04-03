@@ -15,21 +15,21 @@ else:
 class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
 
-    def __init__(self,model,nepochs=100,sbatch=64,lr=0.01,lr_min=1e-4,lr_factor=3,lr_patience=5,clipgrad=100,args=None, log_name=None):
+    def __init__(self,model,nepochs=100,sbatch=64,lr=0.05,lr_min=1e-4,lr_factor=3,lr_patience=5,clipgrad=100,args=None, log_name=None):
         self.model=model
         self.model_old=None
         self.fisher=None
 
         file_name = log_name
         self.logger = utils.logger(file_name=file_name, resume=False, path='./result_data/csvdata/', data_format='csv')
-        
-        self.nepochs=nepochs
-        self.sbatch=sbatch
-        self.lr=lr
-        self.lr_min=lr_min
-        self.lr_factor=lr_factor
-        self.lr_patience=lr_patience
-        self.clipgrad=clipgrad
+
+        self.nepochs = nepochs
+        self.sbatch = sbatch
+        self.lr = lr
+        self.lr_min = lr_min
+        self.lr_factor = lr_factor
+        self.lr_patience = lr_patience
+        self.clipgrad = clipgrad
 
         self.ce=torch.nn.CrossEntropyLoss()
         self.optimizer=self._get_optimizer()
@@ -45,12 +45,12 @@ class Appr(object):
         if lr is None: lr=self.lr
         return torch.optim.SGD(self.model.parameters(),lr=lr)
 
-    def train(self,t,xtrain,ytrain,xvalid,yvalid,data,input_size,taskcla):
-        best_loss=np.inf
-        best_model=utils.get_model(self.model)
-        lr=self.lr
-        patience=self.lr_patience
-        self.optimizer=self._get_optimizer(lr)
+    def train(self, t, xtrain, ytrain, xvalid, yvalid, data, input_size, taskcla):
+        best_loss = np.inf
+        best_model = utils.get_model(self.model)
+        lr = self.lr
+        patience = self.lr_patience
+        self.optimizer = self._get_optimizer(lr)
 
         # Loop epochs
         for e in range(self.nepochs):
@@ -75,26 +75,26 @@ class Appr(object):
                 self.logger.add(epoch=(t*self.nepochs)+e, task_num=task+1, valid_loss=valid_loss_t, valid_acc=valid_acc_t)
             
             # Adapt lr
-            if valid_loss<best_loss:
-                best_loss=valid_loss
-                best_model=utils.get_model(self.model)
-                patience=self.lr_patience
-                print(' *',end='')
+            if valid_loss < best_loss:
+                best_loss = valid_loss
+                best_model = utils.get_model(self.model)
+                patience = self.lr_patience
+                print(' *', end='')
             else:
-                patience-=1
-                if patience<=0:
-                    lr/=self.lr_factor
-                    print(' lr={:.1e}'.format(lr),end='')
-                    if lr<self.lr_min:
+                patience -= 1
+                if patience <= 0:
+                    lr /= self.lr_factor
+                    print(' lr={:.1e}'.format(lr), end='')
+                    if lr < self.lr_min:
                         print()
                         break
-                    patience=self.lr_patience
-                    self.optimizer=self._get_optimizer(lr)
+                    patience = self.lr_patience
+                    self.optimizer = self._get_optimizer(lr)
             print()
 
         # Restore best
-        utils.set_model_(self.model,best_model)
-        
+        utils.set_model_(self.model, best_model)
+
         self.logger.save()
         
         # Update old
@@ -149,8 +149,8 @@ class Appr(object):
         total_num=0
         self.model.eval()
 
-        r=np.arange(x.size(0))
-        r=torch.LongTensor(r).cuda()
+        r = np.arange(x.size(0))
+        r = torch.LongTensor(r).cuda()
 
         # Loop batches
         for i in range(0,len(r),self.sbatch):

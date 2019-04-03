@@ -10,7 +10,7 @@ def get_args():
                                  'cifar', 'mixture', 'omniglot'], help='(default=%(default)s)')
     parser.add_argument('--approach', default='', type=str, required=True,
                         choices=['random', 'sgd', 'sgd-frozen', 'sgd_with_log', 'sgd_L2_with_log', 'lwf',
-                                 'lwf_with_log', 'lfl', 'ewc', 'ewc_with_log', 'baye', 'baye_hat', 'imm-mean', 'progressive', 'pathnet',
+                                 'lwf_with_log', 'lfl', 'ewc', 'ewc_with_log', 'baye', 'baye_fisher','baye_hat', 'imm-mean', 'progressive', 'pathnet',
                                  'imm-mode', 'sgd-restart', 'joint', 'hat', 'hat-test'], help='(default=%(default)s)')
     parser.add_argument('--output', default='', type=str, required=False, help='(default=%(default)s)')
     parser.add_argument('--nepochs', default=200, type=int, required=False, help='(default=%(default)d)')
