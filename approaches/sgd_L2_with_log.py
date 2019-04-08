@@ -2,6 +2,7 @@ import sys,time, os
 import numpy as np
 import torch
 import utils
+from copy import deepcopy
 
 sys.path.append('..')
 from arguments import get_args
@@ -84,9 +85,9 @@ class Appr(object):
                     self.optimizer=self._get_optimizer(lr)
             print()
 
-            self.model_old = Net(input_size, taskcla).cuda()
-            self.model_old.load_state_dict(self.model.state_dict())
-            utils.freeze_model(self.model_old)  # Freeze the weights
+#             self.model_old = Net(input_size, taskcla).cuda()
+#             self.model_old.load_state_dict(self.model.state_dict())
+#             utils.freeze_model(self.model_old)  # Freeze the weights
 
         # Restore best
         utils.set_model_(self.model,best_model)
@@ -116,7 +117,14 @@ class Appr(object):
             self.optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm(self.model.parameters(),self.clipgrad)
+            self.model_old = deepcopy(self.model)
+            self.model_old.load_state_dict(self.model.state_dict())
+#             utils.freeze_model(self.model_old)  # Freeze the weights
+
+
             self.optimizer.step()
+
+
 
         return
 

@@ -11,13 +11,14 @@ from arguments import get_args
 args = get_args()
 
 from core.networks import BayesianNetwork as Net
+from core.networks import AttentionLinear 
 
 
 class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
 
-    def __init__(self, model, model_old, nepochs=100, sbatch=64, lr=0.05, lr_min=1e-4, lr_factor=3, lr_patience=5, clipgrad=100,
-                 args=None, log_name=None):
+    def __init__(self, model, model_old, nepochs=100, sbatch=64, sample = 5, lr=0.01, lr_min=1e-4, lr_factor=3, lr_patience=5, clipgrad=100, args=None, log_name=None):
+   
         self.model = model
         self.model_old = model_old
 
@@ -26,11 +27,15 @@ class Appr(object):
 
         self.nepochs = nepochs
         self.sbatch = sbatch
+        self.sample = sample
         self.lr = lr
         self.lr_min = lr_min
         self.lr_factor = lr_factor
         self.lr_patience = lr_patience
         self.clipgrad = clipgrad
+        self.args = args
+        self.iteration = 0
+        self.s = 1
 
         # self.ce = torch.nn.CrossEntropyLoss()
         self.optimizer = self._get_optimizer()
@@ -44,8 +49,72 @@ class Appr(object):
 
     def _get_optimizer(self, lr=None):
         if lr is None: lr = self.lr
-        return torch.optim.SGD(self.model.parameters(), lr=lr)
+        #return torch.optim.SGD(self.model.parameters(), lr=lr)
+        return torch.optim.Adam(self.model.parameters(), lr=lr)
+    
+    def Bernoulli_freeze(self,i):
+        for (_, saver_layer), (_, trainer_layer) in zip(self.model_old.named_children(), self.model.named_children()):
+            if isinstance(saver_layer, AttentionLinear) and isinstance(trainer_layer, AttentionLinear):
+                continue
+            rho_saver = saver_layer.weight_rho
+            a, b = 1000, -0.0595
+            probs = torch.sigmoid(a * (rho_saver + b))
+            Bern = torch.distributions.bernoulli.Bernoulli(probs)
+            mask = Bern.sample()
+            #trainer_layer.weight_mu.grad *= mask
+            trainer_layer.weight_mu.grad *= probs
+            """
+            if i==self.sbatch:
+                print(trainer_layer.weight_mu.grad)
+            """
+        
+        return
+    
+    
+    def print_log(self, e):
+        f = open(self.args.output + '_std_value.txt','a')
+        min_arr = []
+        min_idx_arr = []
+        max_arr = []
+        max_idx_arr = []
+        mean, var, rho_sum = 0, 0, 0
+        for (_, layer) in self.model.named_children():
+            rho = torch.log1p(torch.exp(layer.weight_rho))
+#             rho = layer.weight_rho
+            rho = rho.data.cpu().numpy()
+            min_arr.append(np.min(rho))
+            min_idx_arr.append(np.argmin(rho))
+            max_arr.append(np.max(rho))
+            max_idx_arr.append(np.argmin(rho))
+            mean = np.mean(rho)
+            var = np.var(rho)
+            rho_sum += np.sum(rho<0.065)
+        f.write('Epoch:%d\n'%e)
 
+        f.write(' minimum std:\n')
+        for i in range(len(min_arr)):
+            f.write('%f '%(min_arr[i]))
+
+        f.write('\n min idx std:\n')
+        for i in range(len(min_arr)):
+            f.write('%d '%(min_idx_arr[i]))
+
+        f.write('\n maximum std:\n')
+        for i in range(len(min_arr)):
+            f.write('%f '%(max_arr[i]))
+
+        f.write('\n max idx std:\n')
+        for i in range(len(min_arr)):
+            f.write('%d '%(max_idx_arr[i]))
+
+        f.write('\n mean: %f'%(mean))
+        f.write('\n var: %f'%(var))
+        f.write('\n sum: %d'%(rho_sum))
+
+        f.write('\n')
+        f.flush()
+    
+            
     def train(self, t, xtrain, ytrain, xvalid, yvalid, data, input_size, taskcla):
         best_loss = np.inf
         best_model = utils.get_model(self.model)
@@ -64,15 +133,16 @@ class Appr(object):
             # 1. trainer_net training 하는데 regularization을 위해서 saver_net의 정보 이용
 
             self.train_epoch(xtrain, ytrain)
+            
 
             clock1 = time.time()
-            train_loss, train_acc = self.eval(xtrain, ytrain)
+            train_loss, train_acc = self.eval(xtrain, ytrain, self.sample)
             clock2 = time.time()
             print('| Epoch {:3d}, time={:5.1f}ms/{:5.1f}ms | Train: loss={:.3f}, acc={:5.1f}% |'.format(
                 e + 1, 1000 * self.sbatch * (clock1 - clock0) / xtrain.size(0),
                 1000 * self.sbatch * (clock2 - clock1) / xtrain.size(0), train_loss, 100 * train_acc), end='')
             # Valid
-            valid_loss, valid_acc = self.eval(xvalid, yvalid)
+            valid_loss, valid_acc = self.eval(xvalid, yvalid, self.sample)
             print(' Valid: loss={:.3f}, acc={:5.1f}% |'.format(valid_loss, 100 * valid_acc), end='')
 
             # save log for current task & old tasks at every epoch
@@ -80,7 +150,7 @@ class Appr(object):
             for task in range(t):
                 xvalid_t = data[task]['valid']['x'].cuda()
                 yvalid_t = data[task]['valid']['y'].cuda()
-                valid_loss_t, valid_acc_t = self.eval(xvalid_t, yvalid_t)
+                valid_loss_t, valid_acc_t = self.eval(xvalid_t, yvalid_t, self.sample)
                 self.logger.add(epoch=(t * self.nepochs) + e, task_num=task + 1, valid_loss=valid_loss_t,
                                 valid_acc=valid_acc_t)
 
@@ -102,9 +172,12 @@ class Appr(object):
                     self.optimizer = self._get_optimizer(lr)
             print()
 
-            self.model_old = deepcopy(self.model)
+            #self.model_old = deepcopy(self.model)
             utils.freeze_model(self.model_old)  # Freeze the weights
-
+            
+            #self.print_log(e)
+            
+            
             # for n, m in self.model.named_children():
             #     print(n, m.weight.sigma.min())
 
@@ -123,7 +196,9 @@ class Appr(object):
         r = torch.LongTensor(r).cuda()
 
         # Loop batches
+        
         for i in range(0, len(r), self.sbatch):
+            self.iteration += 1
             if i + self.sbatch <= len(r):
                 b = r[i:i + self.sbatch]
             else:
@@ -134,7 +209,7 @@ class Appr(object):
             # Forward current model
             # outputs = self.model.forward(images)
             mini_batch_size = len(targets)
-            loss = self.model.sample_elbo(images, targets, mini_batch_size)
+            loss = self.model.sample_elbo(images, targets, mini_batch_size, self.sample, self.model_old, self.args.use_Attention, self.s)
             loss = self.custom_regularization(self.model_old, self.model, mini_batch_size, loss)
 
             # for (n,p_old), (_, p) in zip(self.model_old.named_parameters(), self.model.named_parameters()):
@@ -147,8 +222,27 @@ class Appr(object):
             self.optimizer.zero_grad()
             loss.backward()
             # torch.nn.utils.clip_grad_norm(self.model.parameters(), self.clipgrad)
-            self.optimizer.step()
+            self.model_old = deepcopy(self.model)
+            if args.use_Bernoulli:
+                self.Bernoulli_freeze(i)
+            
+            if args.use_Attention:
+                pass
+            
+            f = open(self.args.output + '_std_value.txt','a')
+            min_arr = []
+            for (_, layer) in self.model.named_children():
+                if isinstance(layer, AttentionLinear):
+                    continue
+                rho = torch.log1p(torch.exp(layer.weight_rho))
+                rho = rho.data.cpu().numpy()
+                f.write('%f '%(np.min(rho)))
 
+            f.write('\n')
+            f.flush()
+            
+            self.optimizer.step()
+            
             # 2. 1 batch가 끝나면 saver_net에 trainet_net을 복사 (weight = mean, sigma)
 
         # for batch_idx, (data, target) in enumerate(train_loader):
@@ -166,7 +260,7 @@ class Appr(object):
 
         return
 
-    def eval(self, x, y, samples=10):
+    def eval(self, x, y, samples=5):
         total_loss = 0
         total_acc = 0
         total_num = 0
@@ -233,9 +327,11 @@ class Appr(object):
 # custom regularization
 
     def custom_regularization(self,saver_net, trainer_net, mini_batch_size, loss=None):
-        mean_reg = 0
-        sigma_reg = 0
-
+        mean_weight_reg = 0
+        mean_bias_reg = 0
+        sigma_weight_reg = 0
+        sigma_bias_reg = 0
+        
         # net1, net2에서 각 레이어에 있는 mean, sigma를 이용하여 regularization 구현
 
         # 만약 BayesianNetwork 이면
@@ -243,31 +339,52 @@ class Appr(object):
 
             # 각 모델에 module 접근
             for (_, saver_layer), (_, trainer_layer) in zip(saver_net.named_children(), trainer_net.named_children()):
-                    # calculate mean regularization
-                trainer_mu = trainer_layer.weight_mu
-                saver_mu = saver_layer.weight_mu
+                if isinstance(saver_layer, AttentionLinear) and isinstance(trainer_layer, AttentionLinear):
+                    continue
+                
+                # calculate mean regularization
+                trainer_weight_mu = trainer_layer.weight_mu
+                saver_weight_mu = saver_layer.weight_mu
+                
+                trainer_bias_mu = trainer_layer.bias_mu
+                saver_bias_mu = saver_layer.bias_mu
+                
+#                 trainer_weight_sigma = trainer_layer.weight_rho
+#                 saver_weight_sigma = saver_layer.weight_rho
+                
+#                 trainer_bias_sigma = trainer_layer.bias_rho
+#                 saver_bias_sigma = saver_layer.bias_rho
+                
+                trainer_weight_sigma = torch.log1p(torch.exp(trainer_layer.weight_rho))
+                saver_weight_sigma = torch.log1p(torch.exp(saver_layer.weight_rho))
 
-                trainer_sigma = torch.log1p(torch.exp(trainer_layer.weight_rho))
-                saver_sigma = torch.log1p(torch.exp(saver_layer.weight_rho))
-
-                # mean_reg += lambda_*(torch.div(trainer_layer.weight_mu, saver_layer.weight_rho)-torch.div(trainer_layer.weight_mu, trainer_layer.weight_rho)).norm(2)
-                mean_reg += (torch.div(trainer_mu, saver_sigma) - torch.div(saver_mu, saver_sigma)).norm(2)
+                trainer_bias_sigma = torch.log1p(torch.exp(trainer_layer.bias_rho))
+                saver_bias_sigma = torch.log1p(torch.exp(saver_layer.bias_rho))
+                
+                mean_weight_reg += (torch.div(trainer_weight_mu, saver_weight_sigma) - torch.div(saver_weight_mu, saver_weight_sigma)).norm(2)**2
+                mean_bias_reg += (torch.div(trainer_bias_mu, saver_bias_sigma) - torch.div(saver_bias_mu, saver_bias_sigma)).norm(2)**2
 
                 if args.use_sigmamax:
-                    mean_reg = mean_reg * saver_sigma.max()
+                    mean_weight_reg = mean_weight_reg * ((saver_weight_sigma.max())**2)
+                    mean_bias_reg = mean_bias_reg * ((saver_bias_sigma.max())**2)
 
                 # calculate sigma_reg regularization
 
                 # sigma_reg += torch.sum(torch.div(trainer_layer.weight_rho, saver_layer.weight_rho) - torch.log(torch.div(trainer_layer.weight_rho, saver_layer.weight_rho)))
-                sigma_reg += torch.sum(torch.div(trainer_sigma **2 , saver_sigma **2) - torch.log(
-                    torch.div(trainer_sigma **2, saver_sigma **2)))
+                sigma_weight_reg += torch.sum(torch.div(trainer_weight_sigma **2 , saver_weight_sigma **2) - torch.log(
+                    torch.div(trainer_weight_sigma **2, saver_weight_sigma **2)))
+                sigma_bias_reg += torch.sum(torch.div(trainer_bias_sigma **2 , saver_bias_sigma **2) - torch.log(
+                    torch.div(trainer_bias_sigma **2, saver_bias_sigma **2)))
 
-            sigma_reg = sigma_reg / (mini_batch_size * 2)
-            mean_reg = mean_reg / (mini_batch_size * 2)
+            mean_weight_reg = mean_weight_reg / (mini_batch_size * 2)
+            mean_bias_reg = mean_bias_reg / (mini_batch_size * 2)
+            
+            sigma_weight_reg = sigma_weight_reg / (mini_batch_size * 2)
+            sigma_bias_reg = sigma_bias_reg / (mini_batch_size * 2)
 
             loss = loss / mini_batch_size
 
         #             print (mean_reg, sigma_reg) # regularization value 확인
-        loss = loss + self.lamb * mean_reg + sigma_reg
+        loss = loss + self.lamb * mean_weight_reg + self.lamb * mean_bias_reg + sigma_weight_reg + sigma_bias_reg
 
         return loss
