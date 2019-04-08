@@ -11,7 +11,7 @@ from networks.mlp_mh import Net
 class Appr(object):
     """ Class implementing the Learning Without Forgetting approach described in https://arxiv.org/abs/1606.09282 """
 
-    def __init__(self,model,nepochs=100,sbatch=64,lr=0.05,lr_min=1e-4,lr_factor=3,lr_patience=5,clipgrad=100,T=1,args=None, log_name=None):
+    def __init__(self,model,nepochs=100,sbatch=64,lr=0.05,lr_min=1e-4,lr_factor=3,lr_patience=5,clipgrad=100,args=None, log_name=None):
         self.model=model
         self.model_old=None
 
@@ -29,7 +29,7 @@ class Appr(object):
         self.ce=torch.nn.CrossEntropyLoss()
         self.optimizer=self._get_optimizer()
         self.lamb=args.lamb          # Grid search = [0.1, 0.5, 1, 2, 4, 8, 10]; best was 2
-        self.T=T                # Grid search = [0.5,1,2,4]; best was 1
+        self.T=args.T                # Grid search = [0.5,1,2,4]; best was 1
 
         if len(args.parameter)>=1:
             params=args.parameter.split(',')
