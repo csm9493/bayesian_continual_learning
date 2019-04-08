@@ -180,4 +180,4 @@ class Appr(object):
         # Cross entropy loss
         loss_ce=self.ce(output,targets)
 
-        return loss_ce + self.reg*loss_reg
+        return loss_ce + self.lamb*loss_reg
