@@ -19,8 +19,8 @@ def get(seed=0, fixed_order=False, pc_valid=0):
     if not fixed_order:
         seeds = shuffle(seeds, random_state=seed)
 
-    if not os.path.isdir('../dat/binary_pmnist2_ver2/'):
-        os.makedirs('../dat/binary_pmnist2_ver2')
+    if not os.path.isdir('./mnist-data/binary_pmnist2/'):
+        os.makedirs('./mnist-data/binary_pmnist2/')
         # Pre-load
         # MNIST
         mean = (0.1307,)
@@ -35,7 +35,7 @@ def get(seed=0, fixed_order=False, pc_valid=0):
 
         #normalization, load
     
-        filename = 'Permuted_MNIST_task10_ver2.hdf5'
+        filename = 'Permuted_MNIST_task10.hdf5'
         f = h5py.File('../dat/' + filename, 'r')
         
         X_train_data = (np.array(f['X_train_data'])/255. - mean[0]) / std[0]
@@ -89,8 +89,8 @@ def get(seed=0, fixed_order=False, pc_valid=0):
             for s in ['train', 'test']:
                 data[i][s]['x'] = data[i][s]['x'].view(-1, size[0], size[1], size[2])
                 data[i][s]['y'] = torch.LongTensor(np.array(data[i][s]['y'], dtype=int)).view(-1)
-                torch.save(data[i][s]['x'],os.path.join(os.path.expanduser('../dat/binary_pmnist2_ver2'), 'data' + str(r) + s + 'x.bin'))
-                torch.save(data[i][s]['y'],os.path.join(os.path.expanduser('../dat/binary_pmnist2_ver2'), 'data' + str(r) + s + 'y.bin'))
+                torch.save(data[i][s]['x'],os.path.join(os.path.expanduser('./mnist-data/binary_pmnist2/'), 'data' + str(r) + s + 'x.bin'))
+                torch.save(data[i][s]['y'],os.path.join(os.path.expanduser('./mnist-data/binary_pmnist2/'), 'data' + str(r) + s + 'y.bin'))
         print()
 
     else:
@@ -104,8 +104,8 @@ def get(seed=0, fixed_order=False, pc_valid=0):
             # Load
             for s in ['train', 'test']:
                 data[i][s] = {'x': [], 'y': []}
-                data[i][s]['x'] = torch.load(os.path.join(os.path.expanduser('../dat/binary_pmnist2_ver2'), 'data' + str(r) + s + 'x.bin'))
-                data[i][s]['y'] = torch.load(os.path.join(os.path.expanduser('../dat/binary_pmnist2_ver2'), 'data' + str(r) + s + 'y.bin'))
+                data[i][s]['x'] = torch.load(os.path.join(os.path.expanduser('./mnist-data/binary_pmnist2/'), 'data' + str(r) + s + 'x.bin'))
+                data[i][s]['y'] = torch.load(os.path.join(os.path.expanduser('./mnist-data/binary_pmnist2/'), 'data' + str(r) + s + 'y.bin'))
 
     # Validation
     for t in data.keys():
