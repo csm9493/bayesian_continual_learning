@@ -45,12 +45,12 @@ class Appr(object):
         if lr is None: lr=self.lr
         return torch.optim.SGD(self.model.parameters(),lr=lr)
 
-    def train(self,t,xtrain,ytrain,xvalid,yvalid, data):
-        best_loss=np.inf
-        best_model=utils.get_model(self.model)
-        lr=self.lr
-        patience=self.lr_patience
-        self.optimizer=self._get_optimizer(lr)
+    def train(self, t, xtrain, ytrain, xvalid, yvalid, data, input_size, taskcla):
+        best_loss = np.inf
+        best_model = utils.get_model(self.model)
+        lr = self.lr
+        patience = self.lr_patience
+        self.optimizer = self._get_optimizer(lr)
 
         # Loop epochs
         for e in range(self.nepochs):
