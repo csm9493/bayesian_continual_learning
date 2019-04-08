@@ -2,27 +2,38 @@ import sys,time
 import numpy as np
 import torch
 from copy import deepcopy
-
 import utils
+sys.path.append('..')
+from arguments import get_args
+args = get_args()
+
+from networks.mlp import Net
 
 class Appr(object):
     """ Class implementing the Less Forgetting Learning approach described in http://arxiv.org/abs/1607.00122 """
 
-    def __init__(self,model,nepochs=100,sbatch=64,lr=0.05,lr_min=1e-4,lr_factor=3,lr_patience=5,clipgrad=200,lamb=0.05,args=None):
+    def __init__(self,model,nepochs=100,sbatch=64,lr=0.05,lr_min=1e-4,lr_factor=3,lr_patience=5,clipgrad=200,lamb=0.05,args=None, log_name=None):
         self.model=model
         self.model_old=None
 
-        self.nepochs=nepochs
-        self.sbatch=sbatch
-        self.lr=lr
-        self.lr_min=lr_min
-        self.lr_factor=lr_factor
-        self.lr_patience=lr_patience
-        self.clipgrad=clipgrad
+        file_name = log_name
+        self.logger = utils.logger(file_name=file_name, resume=False, path='./result_data/csvdata/', data_format='csv')
+
+        self.nepochs = nepochs
+        self.sbatch = sbatch
+        self.lr = lr
+        self.lr_min = lr_min
+        self.lr_factor = lr_factor
+        self.lr_patience = lr_patience
+        self.clipgrad = clipgrad
 
         self.ce=torch.nn.CrossEntropyLoss()
         self.optimizer=self._get_optimizer()
-        self.lamb=lamb      # Grid search = [1e-1, 5e-2, 1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5]; best was 0.05, but none of them really worked
+        self.lamb=args.lamb                      # Grid search = [1e-1, 5e-2, 1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5]; best was 0.05, but none of them really worked
+        if len(args.parameter)>=1:
+            params=args.parameter.split(',')
+            print('Setting parameters to',params)
+            self.lamb=float(params[0])
 
         return
 
@@ -30,12 +41,12 @@ class Appr(object):
         if lr is None: lr=self.lr
         return torch.optim.SGD(self.model.parameters(),lr=lr)
 
-    def train(self,t,xtrain,ytrain,xvalid,yvalid):
-        best_loss=np.inf
-        best_model=utils.get_model(self.model)
-        lr=self.lr
-        patience=self.lr_patience
-        self.optimizer=self._get_optimizer(lr)
+    def train(self, t, xtrain, ytrain, xvalid, yvalid, data, input_size, taskcla):
+        best_loss = np.inf
+        best_model = utils.get_model(self.model)
+        lr = self.lr
+        patience = self.lr_patience
+        self.optimizer = self._get_optimizer(lr)
 
         # Loop epochs
         for e in range(self.nepochs):
@@ -50,26 +61,38 @@ class Appr(object):
             # Valid
             valid_loss,valid_acc=self.eval(t,xvalid,yvalid)
             print(' Valid: loss={:.3f}, acc={:5.1f}% |'.format(valid_loss,100*valid_acc),end='')
+            
+            #save log for current task & old tasks at every epoch
+            self.logger.add(epoch=(t*self.nepochs)+e, task_num=t+1, valid_loss=valid_loss, valid_acc=valid_acc)
+            for task in range(t): 
+                xvalid_t=data[task]['valid']['x'].cuda()
+                yvalid_t=data[task]['valid']['y'].cuda()
+                valid_loss_t,valid_acc_t=self.eval(task,xvalid_t,yvalid_t)
+                self.logger.add(epoch=(t*self.nepochs)+e, task_num=task+1, valid_loss=valid_loss_t, valid_acc=valid_acc_t)
+            
             # Adapt lr
-            if valid_loss<best_loss:
-                best_loss=valid_loss
-                best_model=utils.get_model(self.model)
-                patience=self.lr_patience
-                print(' *',end='')
+            if valid_loss < best_loss:
+                best_loss = valid_loss
+                best_model = utils.get_model(self.model)
+                patience = self.lr_patience
+                print(' *', end='')
             else:
-                patience-=1
-                if patience<=0:
-                    lr/=self.lr_factor
-                    print(' lr={:.1e}'.format(lr),end='')
-                    if lr<self.lr_min:
+                patience -= 1
+                if patience <= 0:
+                    lr /= self.lr_factor
+                    print(' lr={:.1e}'.format(lr), end='')
+                    if lr < self.lr_min:
                         print()
                         break
-                    patience=self.lr_patience
-                    self.optimizer=self._get_optimizer(lr)
+                    patience = self.lr_patience
+                    self.optimizer = self._get_optimizer(lr)
             print()
 
         # Restore best and save model as old
         utils.set_model_(self.model,best_model)
+        
+        self.logger.save()
+        
         self.model_old=deepcopy(self.model)
         self.model_old.eval()
         utils.freeze_model(self.model_old)
@@ -87,8 +110,8 @@ class Appr(object):
         for i in range(0,len(r),self.sbatch):
             if i+self.sbatch<=len(r): b=r[i:i+self.sbatch]
             else: b=r[i:]
-            images=torch.autograd.Variable(x[b],volatile=False)
-            targets=torch.autograd.Variable(y[b],volatile=False)
+            images=x[b]
+            targets=y[b]
 
             # Forward old model
             layer_old=None
@@ -114,15 +137,15 @@ class Appr(object):
         total_num=0
         self.model.eval()
 
-        r=np.arange(x.size(0))
-        r=torch.LongTensor(r).cuda()
+        r = np.arange(x.size(0))
+        r = torch.LongTensor(r).cuda()
 
         # Loop batches
         for i in range(0,len(r),self.sbatch):
             if i+self.sbatch<=len(r): b=r[i:i+self.sbatch]
             else: b=r[i:]
-            images=torch.autograd.Variable(x[b],volatile=True)
-            targets=torch.autograd.Variable(y[b],volatile=True)
+            images=x[b]
+            targets=y[b]
 
             # Forward old model
             layer_old=None
@@ -141,6 +164,7 @@ class Appr(object):
 #             total_acc+=hits.sum().data.cpu().numpy()[0]
             total_loss+=loss.data.cpu().numpy()*len(b)
             total_acc+=hits.sum().data.cpu().numpy()
+            total_num+=len(b)
 
         return total_loss/total_num,total_acc/total_num
 

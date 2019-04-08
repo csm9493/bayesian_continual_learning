@@ -2,18 +2,23 @@ import sys,time
 import numpy as np
 import torch
 from copy import deepcopy
-import torch.nn.functional as F
-from collections import defaultdict
-
 import utils
+sys.path.append('..')
+from arguments import get_args
+args = get_args()
+
+from networks.mlp import Net
 
 class Appr(object):
     """ Class implementing the Incremental Moment Matching (mean) approach described in https://arxiv.org/abs/1703.08475 """
 
-    def __init__(self,model,nepochs=100,sbatch=64,lr=0.05,lr_min=1e-4,lr_factor=3,lr_patience=5,clipgrad=10000,regularizer=0.0001,alpha=0.7,args=None):
+    def __init__(self,model,nepochs=100,sbatch=64,lr=0.05,lr_min=1e-4,lr_factor=3,lr_patience=5,clipgrad=10000,alpha=0.7,args=None, log_name=None):
         self.model=model
         self.model_old=None
 
+        file_name = log_name
+        self.logger = utils.logger(file_name=file_name, resume=False, path='./result_data/csvdata/', data_format='csv')
+        
         self.nepochs=nepochs
         self.sbatch=sbatch
         self.lr=lr
@@ -22,10 +27,10 @@ class Appr(object):
         self.lr_patience=lr_patience
         self.clipgrad=clipgrad
 
-        self.ce = torch.nn.CrossEntropyLoss()
+        self.ce=torch.nn.CrossEntropyLoss()
         self.optimizer=self._get_optimizer()
 
-        self.reg=regularizer    # Grid search = [0.01,0.005,0.001,0.0005,0.0001,0.00005,0.000001]; best was 0.0001
+        self.reg=args.lamb    # Grid search = [0.01,0.005,0.001,0.0005,0.0001,0.00005,0.000001]; best was 0.0001
         #self.alpha=alpha       # We assume the same alpha for all tasks. Unrealistic to tune one alpha per task (num_task-1 alphas) when we have a lot of tasks.
         if len(args.parameter)>=1:
             params=args.parameter.split(',')
@@ -39,12 +44,12 @@ class Appr(object):
         if lr is None: lr=self.lr
         return torch.optim.SGD(self.model.parameters(),lr=lr)
 
-    def train(self,t,xtrain,ytrain,xvalid,yvalid):
-        best_loss=np.inf
-        best_model=utils.get_model(self.model)
-        lr=self.lr
-        patience=self.lr_patience
-        self.optimizer=self._get_optimizer(lr)
+    def train(self, t, xtrain, ytrain, xvalid, yvalid, data, input_size, taskcla):
+        best_loss = np.inf
+        best_model = utils.get_model(self.model)
+        lr = self.lr
+        patience = self.lr_patience
+        self.optimizer = self._get_optimizer(lr)
 
         # Loop epochs
         for e in range(self.nepochs):
@@ -59,22 +64,31 @@ class Appr(object):
             # Valid
             valid_loss,valid_acc=self.eval(t,xvalid,yvalid)
             print(' Valid: loss={:.3f}, acc={:5.1f}% |'.format(valid_loss,100*valid_acc),end='')
+            
+            #save log for current task & old tasks at every epoch
+            self.logger.add(epoch=(t*self.nepochs)+e, task_num=t+1, valid_loss=valid_loss, valid_acc=valid_acc)
+            for task in range(t): 
+                xvalid_t=data[task]['valid']['x'].cuda()
+                yvalid_t=data[task]['valid']['y'].cuda()
+                valid_loss_t,valid_acc_t=self.eval(task,xvalid_t,yvalid_t)
+                self.logger.add(epoch=(t*self.nepochs)+e, task_num=task+1, valid_loss=valid_loss_t, valid_acc=valid_acc_t)
+
             # Adapt lr
-            if valid_loss<best_loss:
-                best_loss=valid_loss
-                best_model=utils.get_model(self.model)
-                patience=self.lr_patience
-                print(' *',end='')
+            if valid_loss < best_loss:
+                best_loss = valid_loss
+                best_model = utils.get_model(self.model)
+                patience = self.lr_patience
+                print(' *', end='')
             else:
-                patience-=1
-                if patience<=0:
-                    lr/=self.lr_factor
-                    print(' lr={:.1e}'.format(lr),end='')
-                    if lr<self.lr_min:
+                patience -= 1
+                if patience <= 0:
+                    lr /= self.lr_factor
+                    print(' lr={:.1e}'.format(lr), end='')
+                    if lr < self.lr_min:
                         print()
                         break
-                    patience=self.lr_patience
-                    self.optimizer=self._get_optimizer(lr)
+                    patience = self.lr_patience
+                    self.optimizer = self._get_optimizer(lr)
             print()
 
         # Restore best, save model as old
@@ -91,7 +105,6 @@ class Appr(object):
         utils.freeze_model(self.model_old)
         self.model_old.eval()
 
-
         return
 
     def train_epoch(self,t,x,y):
@@ -105,13 +118,12 @@ class Appr(object):
         for i in range(0,len(r),self.sbatch):
             if i+self.sbatch<=len(r): b=r[i:i+self.sbatch]
             else: b=r[i:]
-            images=torch.autograd.Variable(x[b],volatile=False)
-            targets=torch.autograd.Variable(y[b],volatile=False)
+            images=x[b]
+            targets=y[b]
 
             # Forward current model
             outputs=self.model.forward(images)
-            output=outputs[t]
-            loss=self.criterion(output, targets, t)
+            loss=self.criterion(t,outputs,targets)
 
             # Backward
             self.optimizer.zero_grad()
@@ -127,21 +139,20 @@ class Appr(object):
         total_num=0
         self.model.eval()
 
-        r=np.arange(x.size(0))
-        r=torch.LongTensor(r).cuda()
+        r = np.arange(x.size(0))
+        r = torch.LongTensor(r).cuda()
 
         # Loop batches
         for i in range(0,len(r),self.sbatch):
             if i+self.sbatch<=len(r): b=r[i:i+self.sbatch]
             else: b=r[i:]
-            images=torch.autograd.Variable(x[b],volatile=True)
-            targets=torch.autograd.Variable(y[b],volatile=True)
+            images=x[b]
+            targets=y[b]
 
             # Forward
             outputs=self.model.forward(images)
-            output=outputs[t]
-            loss=self.criterion(output,targets,t)
-            _,pred=output.max(1)
+            loss=self.criterion(t,outputs,targets)
+            _,pred=outputs.max(1)
             hits=(pred==targets).float()
 
             # Log
@@ -149,10 +160,11 @@ class Appr(object):
 #             total_acc+=hits.sum().data.cpu().numpy()[0]
             total_loss+=loss.data.cpu().numpy()*len(b)
             total_acc+=hits.sum().data.cpu().numpy()
+            total_num+=len(b)
 
         return total_loss/total_num,total_acc/total_num
 
-    def criterion(self, output, targets, t):
+    def criterion(self, t, output, targets):
 
         # L2 multiplier loss
         loss_reg=0
