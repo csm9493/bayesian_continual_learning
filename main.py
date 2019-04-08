@@ -11,8 +11,10 @@ tstart = time.time()
 
 args = get_args()
 args_std = np.log(1+np.exp(args.rho))
-log_name = '{}_{}_{}_{}_{}_lamb_{}_{}_{}_{}_{}'.format(args.date, args.experiment, args.tasknum, args.approach, args.seed,
-                                              args.lamb, args.nepochs, args.sample, args.lr,args_std)
+log_name = '{}_{}_{}_{}_{}_lamb_{}_{}_{}'.format(args.date, args.experiment, args.tasknum, args.approach, args.seed,
+                                              args.lamb, args.nepochs, args.lr)
+if args.approach == 'baye':
+    log_name += '_{}_{}'.format(args.sample, args.std)
 if args.use_sigmamax:
     log_name += '_sigmamax'
 
