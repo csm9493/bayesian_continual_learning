@@ -15,6 +15,8 @@ log_name = '{}_{}_{}_{}_{}_lamb_{}_{}_{}'.format(args.date, args.experiment, arg
                                               args.lamb, args.nepochs, args.lr)
 if args.approach == 'baye':
     log_name += '_{}_{}'.format(args.sample, args.std)
+elif args.approach == 'lwf':
+    log_name += '_T_{}'.format(args.T)
 if args.use_sigmamax:
     log_name += '_sigmamax'
 
