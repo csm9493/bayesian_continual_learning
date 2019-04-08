@@ -16,7 +16,7 @@ class Gaussian(object):
     def sigma(self):
         return torch.log1p(torch.exp(self.rho))
 #         return torch.clamp(self.rho,1e-8,1)
-    
+
     def sample(self):
         epsilon = self.normal.sample(self.rho.size()).cuda()
         return self.mu + self.sigma * epsilon
@@ -25,12 +25,12 @@ class AttentionLinear(nn.Module):
     def __init__(self, in_features):
         super().__init__()
         self.in_features = in_features
-        
+
         #weight init
         self.weight = nn.Parameter(torch.Tensor(in_features).normal_(0,1))
         self.affine_1 = nn.Parameter(torch.Tensor(1).normal_(0,1))
         self.affine_2 = nn.Parameter(torch.Tensor(1).normal_(0,1))
-        
+
     def forward(self, saver_std, trainer_std, attention, s):
         weight = self.weight * attention
         affine_1, affine_2 = self.affine_1, self.affine_2
@@ -38,8 +38,8 @@ class AttentionLinear(nn.Module):
         a2 = torch.matmul(saver_std, weight) * affine_2
         mask = torch.sigmoid(s*(a1+a2))
         return mask
-    
-    
+
+
 class BayesianLinear(nn.Module):
     def __init__(self, in_features, out_features, init_type = 'random', rho_init = -5):
         super().__init__()
@@ -56,20 +56,22 @@ class BayesianLinear(nn.Module):
             min_value_mu = 0
             max_value_mu = 0
             
+            min_value_rho = 3
+            max_value_rho = 3
             
         # Weight parameters
         #self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(-0.2, 0.2))
         self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features))
         nn.init.kaiming_normal_(self.weight_mu)
-        
+
         #self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(-2.783,-2.783))
         self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(rho_init,rho_init))
         #self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(0.06,0.06))
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
-        
-        # Bias parameters        
+
+        # Bias parameters
         self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(-0.2, 0.2))
-        
+
         #self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(-2.783,-2.783))
         self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(rho_init,rho_init))
         #self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(0.06,0.06))
