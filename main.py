@@ -117,6 +117,8 @@ if args.experiment == 'mnist2' or args.experiment == 'pmnist' or args.experiment
             from core import conv_network as network
         else:
             from core import networks as network
+    elif args.approach =='lwf_with_log':
+        from networks import mlp_mh as network
     else:
         if args.conv_net:
             from networks import conv_net as network

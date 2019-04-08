@@ -179,8 +179,6 @@ class Appr(object):
         loss_dist=0
         for t_old in range(0,t):
             loss_dist+=utils.cross_entropy(outputs[t_old],targets_old[t_old],exp=1/self.T)
-        print(outputs[t].shape)
-        print(targets.shape)
         # Cross entropy loss
         loss_ce=self.ce(outputs[t],targets)
 
