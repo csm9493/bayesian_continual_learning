@@ -93,6 +93,7 @@ class Appr(object):
 
         # Restore best, save model as old
         utils.set_model_(self.model,best_model)
+        self.logger.save()
         if t>0:
             model_state = utils.get_model(self.model)
             model_old_state = utils.get_model(self.model_old)

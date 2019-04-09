@@ -94,7 +94,7 @@ class Appr(object):
 
         # Restore best
         utils.set_model_(self.model,best_model)
-
+        self.logger.save()
         # Model update
         if t==0:
             self.fisher=utils.fisher_matrix_diag(t,xtrain,ytrain,self.model,self.criterion)
