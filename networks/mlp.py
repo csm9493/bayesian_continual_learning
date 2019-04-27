@@ -25,7 +25,7 @@ class Net(torch.nn.Module):
     def forward(self,x):
         h=x.view(x.size(0),-1)
         h=F.relu(self.fc1(h))
-        h=self.relu(self.fc2(h))
+        h=F.relu(self.fc2(h))
         #h=self.drop(self.relu(self.fc3(h)))
 #         y=[]
 #         for t,i in self.taskcla:

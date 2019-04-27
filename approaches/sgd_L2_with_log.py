@@ -93,6 +93,10 @@ class Appr(object):
         utils.set_model_(self.model,best_model)
         self.logger.save()
         
+        self.model_old = Net(input_size, taskcla).cuda()
+        self.model_old.load_state_dict(self.model.state_dict())
+        utils.freeze_model(self.model_old)  # Freeze the weights
+
         return
 
     def train_epoch(self,t,x,y):
@@ -117,8 +121,8 @@ class Appr(object):
             self.optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm(self.model.parameters(),self.clipgrad)
-            self.model_old = deepcopy(self.model)
-            self.model_old.load_state_dict(self.model.state_dict())
+#             self.model_old = deepcopy(self.model)
+#             self.model_old.load_state_dict(self.model.state_dict())
 #             utils.freeze_model(self.model_old)  # Freeze the weights
 
 

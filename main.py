@@ -11,23 +11,8 @@ tstart = time.time()
 
 args = get_args()
 args_std = np.log(1+np.exp(args.rho))
-log_name = '{}_{}_{}_{}_{}_lamb_{}_{}_{}_{}_{}'.format(args.date, args.experiment, args.tasknum, args.approach, args.seed,
-                                              args.lamb, args.nepochs, args.sample, args.lr,args_std)
-if args.use_sigmamax:
-    log_name += '_sigmamax'
+log_name = '{}_{}_{}_{}_{}_beta_{}_lamb_{}_{}_{}_{}_{}'.format(args.date, args.experiment, args.tasknum, args.approach, args.seed, args.beta, args.lamb, args.nepochs, args.sample, args.lr, args_std)
 
-if args.use_Bernoulli:
-    log_name += '_Bernoulli'
-
-if args.use_Attention:
-    log_name += '_Attention'
-
-if args.use_Dropout:
-    log_name += '_Dropout'
-
-if args.no_sigma_reg:
-    log_name += 'no_sigma_reg'
-    
 if args.conv_net:
     log_name = log_name + '_conv'
 
@@ -57,6 +42,8 @@ elif args.experiment == 'pmnist':
     from dataloaders import pmnist as dataloader
 elif args.experiment == 'pmnist2':
     from dataloaders import pmnist2 as dataloader
+elif args.experiment == 'pmnist3':
+    from dataloaders import pmnist3 as dataloader
 elif args.experiment == 'pmnist2_task15':
     from dataloaders import pmnist2_task15 as dataloader
 elif args.experiment == 'pmnist2_task50':
@@ -72,7 +59,7 @@ if args.approach == 'random':
 elif args.approach == 'baye':
     from core import baye as approach
 elif args.approach == 'baye_hat':
-    from core import baye_hat as approach
+    from core import baye as approach
 elif args.approach == 'baye_fisher':
     from core import baye_fisher as approach
 elif args.approach == 'sgd':
@@ -111,12 +98,12 @@ elif args.approach == 'joint':
     from approaches import joint as approach
 
 # Args -- Network
-if args.experiment == 'mnist2' or args.experiment == 'pmnist' or args.experiment == 'pmnist2' or args.experiment == 'pmnist2_task15' or args.experiment == 'pmnist2_task50':
+if args.experiment == 'mnist2' or args.experiment == 'pmnist' or args.experiment == 'pmnist2' or args.experiment == 'pmnist3' or args.experiment == 'pmnist2_task15' or args.experiment == 'pmnist2_task50':
     if args.approach == 'hat' or args.approach == 'hat-test':
         from networks import mlp_hat as network
     elif args.approach == 'baye' or args.approach == 'baye_hat' or args.approach == 'baye_fisher':
         if args.conv_net:
-            from core import conv_network as network
+            from core import conv_networks as network
         else:
             from core import networks as network
     else:
@@ -142,18 +129,23 @@ else:
 
 # Load
 print('Load data...')
-data, taskcla, inputsize = dataloader.get(seed=args.seed)
+data, taskcla, inputsize = dataloader.get(seed=args.seed, tasknum = args.tasknum)
 print('Input size =', inputsize, '\nTask info =', taskcla)
 
 # Inits
 print('Inits...')
 # print (inputsize,taskcla)
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
-if args.approach == 'baye' or args.approach == 'baye_hat':
-    net = network.BayesianNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho, dropout = args.use_Dropout).cuda()
-    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho, dropout = args.use_Dropout).cuda()
+if args.approach == 'baye' and args.conv_net == False:
+    net = network.BayesianNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho).cuda()
+    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho).cuda()
     appr = approach.Appr(net, net_old, nepochs=args.nepochs, sample = args.sample, lr=args.lr, args=args, log_name=log_name)
 
+elif args.approach == 'baye' and args.conv_net == True:
+    net = network.BayesianConvNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho).cuda()
+    net_old = network.BayesianConvNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho).cuda()
+    appr = approach.Appr(net, net_old, nepochs=args.nepochs, sample = args.sample, lr=args.lr, args=args, log_name=log_name)
+    
 else:
     net = network.Net(inputsize, taskcla).cuda()
     appr = approach.Appr(net, nepochs=args.nepochs, lr=args.lr, args=args, log_name=log_name)
@@ -219,49 +211,6 @@ for t, ncla in taskcla:
     
     print('Save at ' + args.output)
     np.savetxt(args.output, acc, '%.4f')
-    """
-    f = open('result_data/std_value.txt','a')
-    min_arr = []
-    min_idx_arr = []
-    max_arr = []
-    max_idx_arr = []
-    mean, var, rho_sum = 0, 0, 0
-    for (_, layer) in net.named_children():
-        #rho = torch.log1p(torch.exp(layer.weight_rho))
-        rho = layer.weight_rho
-        rho = rho.data.cpu().numpy()
-        min_arr.append(np.min(rho))
-        min_idx_arr.append(np.argmin(rho))
-        max_arr.append(np.max(rho))
-        max_idx_arr.append(np.argmin(rho))
-        mean = np.mean(rho)
-        var = np.var(rho)
-        rho_sum += np.sum(rho<0.065)
-    f.write('TASK:%d\n'%t)
-    
-    f.write('minimum std:\n')
-    for i in range(len(min_arr)):
-        f.write('%f '%(min_arr[i]))
-    
-    f.write('min idx std:\n')
-    for i in range(len(min_arr)):
-        f.write('%d '%(min_idx_arr[i]))
-    
-    f.write('\n maximum std:\n')
-    for i in range(len(min_arr)):
-        f.write('%f '%(max_arr[i]))
-    
-    f.write('max idx std:\n')
-    for i in range(len(min_arr)):
-        f.write('%d '%(max_idx_arr[i]))
-        
-    f.write('\n mean: %f'%(mean))
-    f.write('\n var: %f'%(var))
-    f.write('\n sum: %d'%(rho_sum))
-    
-    f.write('\n')
-    f.flush()
-    """
     torch.save(net.state_dict(), './models/trained_model/' + log_name + '_task_{}.pt'.format(t))
 
 # Done
