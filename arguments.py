@@ -14,6 +14,7 @@ def get_args():
                                  'imm-mode', 'sgd-restart', 'joint', 'hat', 'hat-test'], help='(default=%(default)s)')
     parser.add_argument('--output', default='', type=str, required=False, help='(default=%(default)s)')
     parser.add_argument('--nepochs', default=50, type=int, required=False, help='(default=%(default)d)')
+    parser.add_argument('--unitN', default=400, type=int, required=False, help='(default=%(default)d)')
     parser.add_argument('--lr', default=0.05, type=float, required=False, help='(default=%(default)f)')
     parser.add_argument('--lamb', default='0.1', type=float, help='(default=%(default)f)')
     parser.add_argument('--beta', default='0.03', type=float, help='(default=%(default)f)')

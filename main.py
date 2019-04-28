@@ -11,7 +11,7 @@ tstart = time.time()
 
 args = get_args()
 args_std = np.log(1+np.exp(args.rho))
-log_name = '{}_{}_{}_{}_{}_beta_{}_lamb_{}_{}_{}_{}_{}'.format(args.date, args.experiment, args.tasknum, args.approach, args.seed, args.beta, args.lamb, args.nepochs, args.sample, args.lr, args_std)
+log_name = '{}_{}_{}_{}_{}_beta_{}_lamb_{}_unitN_{}_{}_{}_{}_{}'.format(args.date, args.experiment, args.tasknum, args.approach, args.seed, args.beta, args.lamb, args.unitN, args.nepochs, args.sample, args.lr, args_std)
 
 if args.conv_net:
     log_name = log_name + '_conv'
@@ -137,8 +137,8 @@ print('Inits...')
 # print (inputsize,taskcla)
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 if args.approach == 'baye' and args.conv_net == False:
-    net = network.BayesianNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho).cuda()
-    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho).cuda()
+    net = network.BayesianNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho, unitN=args.unitN).cuda()
+    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho, unitN=args.unitN).cuda()
     appr = approach.Appr(net, net_old, nepochs=args.nepochs, sample = args.sample, lr=args.lr, args=args, log_name=log_name)
 
 elif args.approach == 'baye' and args.conv_net == True:

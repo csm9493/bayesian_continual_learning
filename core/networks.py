@@ -21,7 +21,7 @@ class Gaussian(object):
         return self.mu + self.sigma * epsilon   
 
 class BayesianLinear(nn.Module):
-    def __init__(self, in_features, out_features, init_type = 'random', rho_init = -2.783, node_wise = False):
+    def __init__(self, in_features, out_features, init_type = 'random', rho_init = -2.783):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -63,14 +63,14 @@ class BayesianLinear(nn.Module):
         self.bias_rho.data = torch.Tensor(self.out_features).uniform_(self.rho_init,self.rho_init).cuda()
 
 class BayesianNetwork(nn.Module):
-    def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -2.783, node_wise = False):
+    def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -2.783, unitN = 400):
         super().__init__()
 
         ncha,size,_=inputsize
         self.taskcla=taskcla
-        self.l1 = BayesianLinear(28*28, 400, init_type, rho_init, node_wise)
-        self.l2 = BayesianLinear(400, 400, init_type, rho_init, node_wise)
-        self.l3 = BayesianLinear(400, 10, init_type, rho_init, node_wise)
+        self.l1 = BayesianLinear(28*28, unitN, init_type, rho_init)
+        self.l2 = BayesianLinear(unitN, unitN, init_type, rho_init)
+        self.l3 = BayesianLinear(unitN, 10, init_type, rho_init)
         
         
         self.s1 = torch.nn.Linear(28*28, 100)
