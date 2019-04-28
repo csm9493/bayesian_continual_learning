@@ -271,14 +271,10 @@ class Appr(object):
             mu_weight_reg = (torch.div(trainer_weight_mu-saver_weight_mu, L2_sigma)).norm(2)**2
             mu_bias_reg = (torch.div(trainer_bias_mu-saver_bias_mu, saver_bias_sigma)).norm(2)**2
             
-#             mu_weight_reg = (torch.div(saver_weight_mu,L1_sigma)*(trainer_weight_mu - saver_weight_mu)).norm(2)**2
-#             mu_bias_reg = (torch.div(saver_bias_mu,saver_bias_sigma)*(trainer_bias_mu - saver_bias_mu)).norm(2)**2
-        
             L1_mu_weight_reg = (torch.div(saver_weight_mu**2,L1_sigma**2)*(trainer_weight_mu - saver_weight_mu)).norm(1)
             L1_mu_bias_reg = (torch.div(saver_bias_mu**2,saver_bias_sigma**2)*(trainer_bias_mu - saver_bias_mu)).norm(1)
             
             std_init = np.log(1+np.exp(self.args.rho))
-#             std_init = 1
             
             mu_weight_reg = mu_weight_reg * std_init ** 2
             mu_bias_reg = mu_bias_reg * std_init ** 2
