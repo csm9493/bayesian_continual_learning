@@ -41,7 +41,7 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 10):
             data[i][s]={}
             data[i][s]['x'] = arr[:,permutation].view(-1, size[0], size[1], size[2])
             data[i][s]['y'] = label
-
+            
     # Validation
     for t in data.keys():
         data[t]['valid'] = {}

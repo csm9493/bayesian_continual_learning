@@ -62,7 +62,7 @@ class BayesianConv2D(_BayesianConvNd):
         stride = _pair(stride)
         padding = _pair(padding)
         dilation = _pair(dilation)
-        super(BayesianConv2D, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, False, _pair(0), groups, bias, init_type = 'random', rho_init = -5, channel_wise = False)
+        super(BayesianConv2D, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, False, _pair(0), groups, bias, init_type = 'random', rho_init = -5)
     
     def forward(self, input, sample = False):
         if sample:
@@ -85,9 +85,9 @@ class BayesianConvNetwork(nn.Module):
         
         ncha,size,_=inputsize
         self.taskcla=taskcla
-        self.l1 = BayesianConv2D(1, 32, 3, init_type=init_type, rho_init=rho_init, channel_wise=channel_wise)
-        self.l2 = BayesianConv2D(32, 64, 3, init_type=init_type, rho_init=rho_init, channel_wise=channel_wise)
-        self.l3 = BayesianConv2D(64, 10, 3, init_type=init_type, rho_init=rho_init, channel_wise=channel_wise)
+        self.l1 = BayesianConv2D(1, 32, 3, init_type=init_type, rho_init=rho_init)
+        self.l2 = BayesianConv2D(32, 64, 3, init_type=init_type, rho_init=rho_init)
+        self.l3 = BayesianConv2D(64, 10, 3, init_type=init_type, rho_init=rho_init)
         
 #         self.s1 = torch.nn.Linear(28*28, 100)
 #         self.s2 = torch.nn.Linear(100, 10)
