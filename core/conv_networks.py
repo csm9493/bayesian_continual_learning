@@ -80,7 +80,7 @@ class BayesianConv2D(_BayesianConvNd):
         self.bias_rho.data = torch.Tensor(self.out_features).uniform_(self.rho_init,self.rho_init).cuda()
 
 class BayesianConvNetwork(nn.Module):
-    def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -5:
+    def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -5):
         super().__init__()
         
         ncha,size,_=inputsize

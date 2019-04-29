@@ -28,19 +28,13 @@ class BayesianLinear(nn.Module):
         self.rho_init = rho_init
         
         self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features))
+        nn.init.kaiming_normal_(self.weight_mu)
         self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(-0.2, 0.2))
         
         self.weight_rho = nn.Parameter(torch.Tensor(out_features,1).uniform_(rho_init,rho_init))
         self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(rho_init,rho_init))
         
-        
-        if init_type == 'random':
-            nn.init.kaiming_normal_(self.weight_mu)
-            
-        else:
-            nn.init.uniform_(self.weight_mu,0,0)
-            nn.init.uniform_(self.bias_mu,0,0)
-            
+        if init_type != 'random':
             nn.init.uniform_(self.weight_rho,0.541,0.541)
 
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
