@@ -243,8 +243,8 @@ class Appr(object):
                 return
 
         for i in range(3):
-            saver_layer = self.model_old.layer_arr[i]
             trainer_layer = self.model.layer_arr[i]
+            saver_layer = self.model_old.layer_arr[i]
 
             # calculate mu regularization
             trainer_weight_mu = trainer_layer.weight_mu
@@ -275,7 +275,6 @@ class Appr(object):
             mu_bias_reg = (torch.div(trainer_bias_mu-saver_bias_mu, saver_bias_sigma)).norm(2)**2
             
             L1_mu_weight_reg = (torch.div(saver_weight_mu**2,L1_sigma**2)*(trainer_weight_mu - saver_weight_mu)).norm(1)
-#             L1_mu_weight_reg = (torch.div(saver_weight_mu**2,L2_sigma**2)*(trainer_weight_mu - saver_weight_mu)).norm(1)
             L1_mu_bias_reg = (torch.div(saver_bias_mu**2,saver_bias_sigma**2)*(trainer_bias_mu - saver_bias_mu)).norm(1)
             
             std_init = np.log(1+np.exp(self.args.rho))
@@ -306,7 +305,7 @@ class Appr(object):
         # L2 loss
         loss = loss + (mu_weight_reg_sum + mu_bias_reg_sum) / (mini_batch_size*2)
         # L1 loss
-        loss = loss + self.saved * (L1_mu_weight_reg_sum+L1_mu_bias_reg_sum) / (mini_batch_size)
+        loss = loss + self.saved * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
         # sigma regularization
         loss = loss + self.beta * (sigma_weight_reg_sum + sigma_bias_reg_sum) / (mini_batch_size*2)
         

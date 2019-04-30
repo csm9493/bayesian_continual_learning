@@ -38,20 +38,15 @@ class _BayesianConvNd(nn.Module):
         self.groups = groups
         
         self.weight_mu = nn.Parameter(torch.Tensor(out_channels, in_channels // groups, *kernel_size))
+        nn.init.kaiming_uniform_(self.weight_mu)
         self.weight_rho = nn.Parameter(torch.Tensor(out_channels, 1, 1, 1).uniform_(rho_init,rho_init))
         
         self.bias_mu = nn.Parameter(torch.Tensor(out_channels).uniform_(-0.2,0.2))
         self.bias_rho = nn.Parameter(torch.Tensor(out_channels).uniform_(rho_init,rho_init))
         
-        if init_type == 'random':
-            # Weight parameters
-            nn.init.kaiming_normal_(self.weight_mu)
-            
-        else:
-            nn.init.uniform_(self.weight_mu,0,0)
-            nn.init.uniform_(self.bias_mu,0,0)
+        if init_type != 'random':
             nn.init.uniform_(self.weight_rho,0.541,0.541)
-        
+            
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
         self.bias = Gaussian(self.bias_mu, self.bias_rho)
             
