@@ -12,8 +12,6 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 10):
     taskcla = []
     size = [1, 28, 28]
     
-    if not os.path.isdir('../dat/binary_pmnist/'):
-        os.makedirs('../dat/binary_pmnist')
     # Pre-load
     # MNIST
     mean = torch.Tensor([0.1307])

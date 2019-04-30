@@ -126,7 +126,8 @@ class Appr(object):
 
         # Restore best
         utils.set_model_(self.model, best_model)
-#         self.model_old = deepcopy(self.model)
+        self.model_old = deepcopy(self.model)
+        self.saved = 1
 
         self.logger.save()
 
@@ -157,11 +158,6 @@ class Appr(object):
             # Backward
             self.optimizer.zero_grad()
             loss.backward()
-            
-            if self.iteration in self.task_boundary:
-                self.model_old = deepcopy(self.model)
-                self.saved = 1
-
             self.optimizer.step()
             
 
