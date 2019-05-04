@@ -19,7 +19,7 @@ from core.conv_networks import BayesianConvNetwork as ConvNet
 class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
 
-    def __init__(self, model, model_old, nepochs=100, sbatch=128, sample = 5, lr=0.01, lr_min=1e-4, lr_factor=3, lr_patience=5, clipgrad=100, args=None, log_name=None):
+    def __init__(self, model, model_old, nepochs=100, sbatch=256, sample = 5, lr=0.01, lr_min=1e-4, lr_factor=3, lr_patience=5, clipgrad=100, args=None, log_name=None):
    
         self.model = model
         self.model_old = model_old
@@ -29,6 +29,8 @@ class Appr(object):
 
         self.nepochs = nepochs
         self.sbatch = sbatch
+        if args.use_multi:
+            self.sbatch = sbatch*4
         self.sample = sample
         self.lr = lr
         self.lr_min = lr_min
@@ -45,6 +47,11 @@ class Appr(object):
         self.grad_arr = []
         self.saved_iter = 0
         self.grad_sum = 0
+        dev_ids = [0,1,2,3]
+        dev_ids.pop(args.dev_num)
+        dev_ids = [args.dev_num] + dev_ids
+        if args.use_multi:
+            self.multi_model = nn.DataParallel(self.model, device_ids = dev_ids)
 
         # self.ce = torch.nn.CrossEntropyLoss()
         self.optimizer = self._get_optimizer()
@@ -60,7 +67,18 @@ class Appr(object):
         if lr is None: lr = self.lr
         #return torch.optim.SGD(self.model.parameters(), lr=lr)
         return torch.optim.Adam(self.model.parameters(), lr=lr)
+    
+    def sample_elbo(self, model, data, target, BATCH_SIZE, samples=5):
+        outputs_x = torch.zeros(samples, BATCH_SIZE, 10).cuda()
         
+        for i in range(samples):
+            outputs_x[i] = model(data, sample=True)
+
+        loss_x = F.nll_loss(outputs_x.mean(0), target, reduction='sum')
+        loss = loss_x
+        
+        return loss
+    
     def train(self, t, xtrain, ytrain, xvalid, yvalid, data, input_size, taskcla):
         best_loss = np.inf
         best_model = utils.get_model(self.model)
@@ -151,7 +169,11 @@ class Appr(object):
 
             # Forward current model
             mini_batch_size = len(targets)
-            loss = self.model.sample_elbo(images, targets, mini_batch_size, self.sample, self.model_old)
+            if args.use_multi:
+                model = self.multi_model
+            else:
+                model = self.model
+            loss = self.sample_elbo(model,images, targets, mini_batch_size, self.sample)
             loss = self.custom_regularization(self.model_old, self.model, mini_batch_size, loss)
             # Backward
             self.optimizer.zero_grad()
@@ -186,7 +208,7 @@ class Appr(object):
 
                 for i in range(samples):
 #                     outputs_x[i], outputs_s = self.model(images, sample=True)
-                    outputs_x[i] = self.model(images, sample=True)
+                    outputs_x[i] = self.model(images, sample=args.ensemble)
 
                 loss_x = F.nll_loss(outputs_x.mean(0), targets, reduction='sum')
 #                 loss_s = F.nll_loss(outputs_s, targets)
@@ -233,8 +255,10 @@ class Appr(object):
         else:
             prev_rho = nn.Parameter(torch.Tensor(28*28,1).uniform_(1,1))
             prev_weight_sigma = torch.log1p(torch.exp(prev_rho))
+            """
             if isinstance(saver_net, Net) == False or isinstance(trainer_net, Net) == False:
                 return
+            """
 
         for i in range(3):
             trainer_layer = self.model.layer_arr[i]

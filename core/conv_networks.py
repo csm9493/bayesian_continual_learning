@@ -52,7 +52,7 @@ class _BayesianConvNd(nn.Module):
             
     
 class BayesianConv2D(_BayesianConvNd):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, init_type = 'random', rho_init = -5):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, init_type = 'random', rho_init = -2.783):
         kernel_size = _pair(kernel_size)
         stride = _pair(stride)
         padding = _pair(padding)
@@ -75,7 +75,7 @@ class BayesianConv2D(_BayesianConvNd):
         self.bias_rho.data = torch.Tensor(self.out_features).uniform_(self.rho_init,self.rho_init).cuda()
 
 class BayesianConvNetwork(nn.Module):
-    def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -5):
+    def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -2.783):
         super().__init__()
         
         ncha,size,_=inputsize

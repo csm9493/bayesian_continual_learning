@@ -41,14 +41,14 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 10):
             data[i][s]['y'] = label
             
     # Validation
-    for t in data.keys():
+    for t in range(tasknum):
         data[t]['valid'] = {}
         data[t]['valid']['x'] = data[t]['train']['x'].clone()
         data[t]['valid']['y'] = data[t]['train']['y'].clone()
 
     # Others
     n = 0
-    for t in data.keys():
+    for t in range(tasknum):
         taskcla.append((t, data[t]['ncla']))
         n += data[t]['ncla']
     data['ncla'] = n

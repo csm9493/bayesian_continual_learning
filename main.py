@@ -1,9 +1,11 @@
 import sys, os, time
 import numpy as np
 import torch
+import torch.nn as nn
 
 import utils
 from arguments import get_args
+
 
 tstart = time.time()
 
@@ -11,8 +13,17 @@ tstart = time.time()
 
 args = get_args()
 args_std = np.log(1+np.exp(args.rho))
-log_name = '{}_{}_{}_{}_{}_beta_{}_lamb_{}_unitN_{}_{}_{}_{}_{}'.format(args.date, args.experiment, args.tasknum, args.approach, args.seed, args.beta, args.lamb, args.unitN, args.nepochs, args.sample, args.lr, args_std)
+log_name = '{}_{}_{}_{}_{}_beta_{}_lamb_{}_unitN_{}_{}_{}_{}_{:.4f}'.format(args.date, args.experiment, args.tasknum, args.approach, args.seed, args.beta, args.lamb, args.unitN, args.nepochs, args.sample, args.lr, args_std)
 
+if args.ensemble == True:
+    log_name = log_name + '_ensemble'
+
+if args.ensemble == False:
+    log_name = log_name + '_no_ensemble'
+
+if args.use_multi:
+    log_name = log_name + '_multi_gpu'
+    
 if args.conv_net:
     log_name = log_name + '_conv'
 
@@ -30,6 +41,7 @@ print('=' * 100)
 # Seed
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
+torch.cuda.set_device(args.dev_num)
 if torch.cuda.is_available():
     torch.cuda.manual_seed(args.seed)
 else:
@@ -44,6 +56,8 @@ elif args.experiment == 'pmnist2':
     from dataloaders import pmnist2 as dataloader
 elif args.experiment == 'pmnist3':
     from dataloaders import pmnist3 as dataloader
+elif args.experiment == 'split_mnist':
+    from dataloaders import split_mnist as dataloader
 elif args.experiment == 'pmnist2_task15':
     from dataloaders import pmnist2_task15 as dataloader
 elif args.experiment == 'pmnist2_task50':
@@ -111,6 +125,20 @@ if args.experiment == 'mnist2' or args.experiment == 'pmnist' or args.experiment
             from networks import conv_net as network
         else:
             from networks import mlp as network
+elif args.experiment == 'split_mnist' or args.experiment == 'split_notmnist':
+    if args.approach == 'hat' or args.approach == 'hat-test':
+        from networks import mlp_hat as network
+    elif args.approach == 'baye' or args.approach == 'baye_hat' or args.approach == 'baye_fisher':
+        if args.conv_net:
+            from core import conv_networks as network
+        else:
+            from core import split_networks as network
+    else:
+        if args.conv_net:
+            from networks import conv_net as network
+        else:
+            from networks import mlp as network
+    
 else:
     if args.approach == 'lfl':
         from networks import alexnet_lfl as network
@@ -129,7 +157,7 @@ else:
 
 # Load
 print('Load data...')
-data, taskcla, inputsize = dataloader.get(seed=args.seed, tasknum = args.tasknum)
+data, taskcla, inputsize = dataloader.get(seed=args.seed, tasknum=args.tasknum)
 print('Input size =', inputsize, '\nTask info =', taskcla)
 
 # Inits
@@ -148,8 +176,10 @@ elif args.approach == 'baye' and args.conv_net == True:
     
 else:
     net = network.Net(inputsize, taskcla).cuda()
+    net_old = network.Net(inputsize, taskcla).cuda()
     appr = approach.Appr(net, nepochs=args.nepochs, lr=args.lr, args=args, log_name=log_name)
 
+    
 utils.print_model_report(net)
 
 print(appr.criterion)
@@ -160,6 +190,8 @@ print('-' * 100)
 acc = np.zeros((len(taskcla), len(taskcla)), dtype=np.float32)
 lss = np.zeros((len(taskcla), len(taskcla)), dtype=np.float32)
 for t, ncla in taskcla:
+    if t == args.tasknum:
+        break
     print('*' * 100)
     print('Task {:2d} ({:s})'.format(t, data[t]['name']))
     print('*' * 100)

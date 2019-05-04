@@ -39,13 +39,22 @@ class BayesianLinear(nn.Module):
 
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
         self.bias = Gaussian(self.bias_mu, self.bias_rho)
-        
+        self.normal = torch.distributions.Normal(0,1)
 
     def forward(self, input, sample=False):
         if sample:
-            weight = self.weight.sample()
-            bias = self.bias.sample()
+            epsilon = self.normal.sample(self.weight_mu.size()).cuda()
+            sigma = torch.log1p(torch.exp(self.weight_rho))
+            mu = self.weight_mu
+            weight = mu + sigma * epsilon
+            
+            epsilon = self.normal.sample(self.bias_mu.size()).cuda()
+            sigma = torch.log1p(torch.exp(self.bias_rho))
+            mu = self.bias_mu
+            bias = mu + sigma * epsilon
+            
         else:
+            
             weight = self.weight.mu
             bias = self.bias.mu
 
@@ -74,7 +83,7 @@ class BayesianNetwork(nn.Module):
         self.layer_arr = [self.l1, self.l2, self.l3]
 
 
-    def forward(self, x, sample=False, saver_net = None):
+    def forward(self, x, sample=False):
         x = s = x.view(-1, 28*28)
         x = F.relu(self.l1(x, sample))
         x = F.relu(self.l2(x, sample))
@@ -89,14 +98,14 @@ class BayesianNetwork(nn.Module):
         return x
 
     
-    def sample_elbo(self, data, target, BATCH_SIZE, samples=5, saver_net = None):
+    def sample_elbo(self, data, target, BATCH_SIZE, samples=5):
         # outputs = torch.zeros(samples, BATCH_SIZE, 10).to(DEVICE)
         outputs_x = torch.zeros(samples, BATCH_SIZE, 10).cuda()
 #         outputs_s = None
         
         for i in range(samples):
 #             outputs_x[i], outputs_s = self(data, sample=True, saver_net = saver_net)
-            outputs_x[i] = self(data, sample=True, saver_net = saver_net)
+            outputs_x[i] = self(data, sample=True)
 
         loss_x = F.nll_loss(outputs_x.mean(0), target, reduction='sum')
 #         loss_s = F.nll_loss(outputs_s, target)

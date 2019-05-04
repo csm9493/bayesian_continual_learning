@@ -7,7 +7,7 @@ def get_args():
     parser.add_argument('--seed', type=int, default=0, help='(default=%(default)d)')
     parser.add_argument('--experiment', default='', type=str, required=True,
                         choices=['mnist2', 'pmnist', 'pmnist2', 'pmnist3', 'pmnist2_task15', 'pmnist2_task50',
-                                 'cifar', 'mixture', 'omniglot'], help='(default=%(default)s)')
+                                 'cifar', 'mixture', 'omniglot','split_mnist','split_notmnist'], help='(default=%(default)s)')
     parser.add_argument('--approach', default='', type=str, required=True,
                         choices=['random', 'sgd', 'sgd-frozen', 'sgd_with_log', 'sgd_L2_with_log', 'lwf',
                                  'lwf_with_log', 'lfl', 'ewc', 'ewc_with_log', 'baye', 'baye_fisher','baye_hat', 'imm-mean', 'progressive', 'pathnet',
@@ -23,7 +23,12 @@ def get_args():
     parser.add_argument('--conv-net', action='store_true', default=False, help='Using convolution network')
     parser.add_argument('--parameter',type=str,default='',help='(default=%(default)s)')
     parser.add_argument('--sample', type = int, default=5, help='Using sigma max to support coefficient')
+    parser.add_argument('--dev-num', type = int, default=0, help='Device number')
+    parser.add_argument('--ensemble', action='store_true', default=False, help='Using ensemble')
+    parser.add_argument('--use-multi', action='store_true', default=False, help='Use multi-gpu')
+    
     parser.add_argument('--rho', type = float, default=-2.783, help='initial rho')
+    
     args = parser.parse_args()
     return args
 
