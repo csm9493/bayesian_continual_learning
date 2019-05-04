@@ -57,7 +57,7 @@ class BayesianConv2D(_BayesianConvNd):
         stride = _pair(stride)
         padding = _pair(padding)
         dilation = _pair(dilation)
-        super(BayesianConv2D, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, False, _pair(0), groups, bias, init_type = 'random', rho_init = -5)
+        super(BayesianConv2D, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, False, _pair(0), groups, bias, init_type, rho_init)
     
     def forward(self, input, sample = False):
         if sample:
