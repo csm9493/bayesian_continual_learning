@@ -29,8 +29,6 @@ class Appr(object):
 
         self.nepochs = nepochs
         self.sbatch = sbatch
-        if args.use_multi:
-            self.sbatch = sbatch*4
         self.sample = sample
         self.lr = lr
         self.lr_min = lr_min
@@ -41,17 +39,11 @@ class Appr(object):
         self.iteration = 0
         self.epoch = 0
         self.saved_point = []
-        self.task_boundary = [46901,93801,140701,187601,234501,281401,328301,375201,422101]
         self.saved = 0
         self.grad_queue = []
         self.grad_arr = []
         self.saved_iter = 0
         self.grad_sum = 0
-        dev_ids = [0,1,2,3]
-        dev_ids.pop(args.dev_num)
-        dev_ids = [args.dev_num] + dev_ids
-        if args.use_multi:
-            self.multi_model = nn.DataParallel(self.model, device_ids = dev_ids)
 
         # self.ce = torch.nn.CrossEntropyLoss()
         self.optimizer = self._get_optimizer()
@@ -169,11 +161,7 @@ class Appr(object):
 
             # Forward current model
             mini_batch_size = len(targets)
-            if args.use_multi:
-                model = self.multi_model
-            else:
-                model = self.model
-            loss = self.sample_elbo(model,images, targets, mini_batch_size, self.sample)
+            loss = self.sample_elbo(self.model,images, targets, mini_batch_size, self.sample)
             loss = self.custom_regularization(self.model_old, self.model, mini_batch_size, loss)
             # Backward
             self.optimizer.zero_grad()

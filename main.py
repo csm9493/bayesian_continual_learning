@@ -21,9 +21,6 @@ if args.ensemble == True:
 if args.ensemble == False:
     log_name = log_name + '_no_ensemble'
 
-if args.use_multi:
-    log_name = log_name + '_multi_gpu'
-    
 if args.conv_net:
     log_name = log_name + '_conv'
 

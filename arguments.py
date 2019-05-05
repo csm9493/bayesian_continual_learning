@@ -25,8 +25,6 @@ def get_args():
     parser.add_argument('--sample', type = int, default=5, help='Using sigma max to support coefficient')
     parser.add_argument('--dev-num', type = int, default=0, help='Device number')
     parser.add_argument('--ensemble', action='store_true', default=False, help='Using ensemble')
-    parser.add_argument('--use-multi', action='store_true', default=False, help='Use multi-gpu')
-    
     parser.add_argument('--rho', type = float, default=-2.783, help='initial rho')
     
     args = parser.parse_args()
