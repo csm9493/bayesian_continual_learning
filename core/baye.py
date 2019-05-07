@@ -44,7 +44,10 @@ class Appr(object):
         self.grad_arr = []
         self.saved_iter = 0
         self.grad_sum = 0
-
+        self.split = False
+        if args.experiment == 'split_mnist' or args.experiment == 'split_notmnist':
+            self.split = True
+        
         # self.ce = torch.nn.CrossEntropyLoss()
         self.optimizer = self._get_optimizer()
         self.beta = args.beta
@@ -61,10 +64,13 @@ class Appr(object):
         return torch.optim.Adam(self.model.parameters(), lr=lr)
     
     def sample_elbo(self, model, data, target, BATCH_SIZE, samples=5):
-        outputs_x = torch.zeros(samples, BATCH_SIZE, 10).cuda()
+        outputs_x = torch.zeros(samples, BATCH_SIZE, self.nb_classes).cuda()
         
         for i in range(samples):
-            outputs_x[i] = model(data, sample=True)
+            if self.split:
+                outputs_x[i] = F.log_softmax(model(data, sample=True)[self.tasknum], dim=1)
+            else:
+                outputs_x[i] = model(data, sample=True)
 
         loss_x = F.nll_loss(outputs_x.mean(0), target, reduction='sum')
         loss = loss_x
@@ -77,7 +83,9 @@ class Appr(object):
         lr = self.lr
         patience = self.lr_patience
         self.optimizer = self._get_optimizer(lr)
-
+        self.nb_classes = taskcla[t][1]
+        self.tasknum = t
+        
         # Loop epochs
         for e in range(self.nepochs):
             self.epoch = self.epoch + 1
@@ -92,13 +100,13 @@ class Appr(object):
             
 
             clock1 = time.time()
-            train_loss, train_acc = self.eval(xtrain, ytrain, self.sample)
+            train_loss, train_acc = self.eval(xtrain, ytrain, self.sample, tasknum = t)
             clock2 = time.time()
             print('| Epoch {:3d}, time={:5.1f}ms/{:5.1f}ms | Train: loss={:.3f}, acc={:5.1f}% |'.format(
                 e + 1, 1000 * self.sbatch * (clock1 - clock0) / xtrain.size(0),
                 1000 * self.sbatch * (clock2 - clock1) / xtrain.size(0), train_loss, 100 * train_acc), end='')
             # Valid
-            valid_loss, valid_acc = self.eval(xvalid, yvalid, self.sample)
+            valid_loss, valid_acc = self.eval(xvalid, yvalid, self.sample, tasknum = t)
             print(' Valid: loss={:.3f}, acc={:5.1f}% |'.format(valid_loss, 100 * valid_acc), end='')
 
             # save log for current task & old tasks at every epoch
@@ -171,7 +179,7 @@ class Appr(object):
 
         return
 
-    def eval(self, x, y, samples=5):
+    def eval(self, x, y, samples=5, tasknum = 0):
         total_loss = 0
         total_acc = 0
         total_num = 0
@@ -191,16 +199,14 @@ class Appr(object):
                 targets = y[b]
 
                 # Forward
-                outputs_x = torch.zeros(samples, len(targets), 10).cuda()
-#                 outputs_s = None
+                outputs_x = torch.zeros(samples, len(targets), self.nb_classes).cuda()
 
                 for i in range(samples):
-#                     outputs_x[i], outputs_s = self.model(images, sample=True)
-                    outputs_x[i] = self.model(images, sample=args.ensemble)
-
+                    if self.split:
+                        outputs_x[i] = F.log_softmax(self.model(images, sample=args.ensemble)[tasknum],dim=1)
+                    else:
+                        outputs_x[i] = self.model(images, sample=args.ensemble)
                 loss_x = F.nll_loss(outputs_x.mean(0), targets, reduction='sum')
-#                 loss_s = F.nll_loss(outputs_s, targets)
-#                 loss = loss_x+loss_s
                 loss = loss_x
                 
                 
@@ -249,6 +255,8 @@ class Appr(object):
             """
 
         for i in range(3):
+            if self.split and i==2:
+                break
             trainer_layer = self.model.layer_arr[i]
             saver_layer = self.model_old.layer_arr[i]
 

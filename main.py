@@ -49,16 +49,8 @@ if args.experiment == 'mnist2':
     from dataloaders import mnist2 as dataloader
 elif args.experiment == 'pmnist':
     from dataloaders import pmnist as dataloader
-elif args.experiment == 'pmnist2':
-    from dataloaders import pmnist2 as dataloader
-elif args.experiment == 'pmnist3':
-    from dataloaders import pmnist3 as dataloader
 elif args.experiment == 'split_mnist':
     from dataloaders import split_mnist as dataloader
-elif args.experiment == 'pmnist2_task15':
-    from dataloaders import pmnist2_task15 as dataloader
-elif args.experiment == 'pmnist2_task50':
-    from dataloaders import pmnist2_task50 as dataloader
 elif args.experiment == 'cifar':
     from dataloaders import cifar as dataloader
 elif args.experiment == 'mixture':
@@ -109,7 +101,7 @@ elif args.approach == 'joint':
     from approaches import joint as approach
 
 # Args -- Network
-if args.experiment == 'mnist2' or args.experiment == 'pmnist' or args.experiment == 'pmnist2' or args.experiment == 'pmnist3' or args.experiment == 'pmnist2_task15' or args.experiment == 'pmnist2_task50':
+if args.experiment == 'pmnist' or args.experiment == 'split_mnist' or args.experiment == 'split_notmnist':
     if args.approach == 'hat' or args.approach == 'hat-test':
         from networks import mlp_hat as network
     elif args.approach == 'baye' or args.approach == 'baye_hat' or args.approach == 'baye_fisher':
@@ -122,20 +114,7 @@ if args.experiment == 'mnist2' or args.experiment == 'pmnist' or args.experiment
             from networks import conv_net as network
         else:
             from networks import mlp as network
-elif args.experiment == 'split_mnist' or args.experiment == 'split_notmnist':
-    if args.approach == 'hat' or args.approach == 'hat-test':
-        from networks import mlp_hat as network
-    elif args.approach == 'baye' or args.approach == 'baye_hat' or args.approach == 'baye_fisher':
-        if args.conv_net:
-            from core import conv_networks as network
-        else:
-            from core import split_networks as network
-    else:
-        if args.conv_net:
-            from networks import conv_net as network
-        else:
-            from networks import mlp as network
-    
+
 else:
     if args.approach == 'lfl':
         from networks import alexnet_lfl as network
@@ -172,8 +151,8 @@ elif args.approach == 'baye' and args.conv_net == True:
     appr = approach.Appr(net, net_old, nepochs=args.nepochs, sample = args.sample, lr=args.lr, args=args, log_name=log_name)
     
 else:
-    net = network.Net(inputsize, taskcla).cuda()
-    net_old = network.Net(inputsize, taskcla).cuda()
+    net = network.Net(inputsize, taskcla, unitN=args.unitN).cuda()
+    net_old = network.Net(inputsize, taskcla, unitN=args.unitN).cuda()
     appr = approach.Appr(net, nepochs=args.nepochs, lr=args.lr, args=args, log_name=log_name)
 
     
@@ -228,7 +207,7 @@ for t, ncla in taskcla:
         xtest = data[u]['test']['x'].cuda()
         ytest = data[u]['test']['y'].cuda()
         if args.approach == 'baye' or args.approach == 'baye_hat' or args.approach == 'baye_fisher':
-            test_loss, test_acc = appr.eval(xtest, ytest)
+            test_loss, test_acc = appr.eval(xtest, ytest, tasknum = u)
         else:
             test_loss, test_acc = appr.eval(u, xtest, ytest)
         print('>>> Test on task {:2d} - {:15s}: loss={:.3f}, acc={:5.1f}% <<<'.format(u, data[u]['name'], test_loss,

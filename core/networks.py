@@ -66,20 +66,22 @@ class BayesianLinear(nn.Module):
         self.bias_rho.data = torch.Tensor(self.out_features).uniform_(self.rho_init,self.rho_init).cuda()
 
 class BayesianNetwork(nn.Module):
-    def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -2.783, unitN = 400):
+    def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -2.783, unitN = 400, single_head = True):
         super().__init__()
 
         ncha,size,_=inputsize
         self.taskcla=taskcla
         self.l1 = BayesianLinear(28*28, unitN, init_type, rho_init)
         self.l2 = BayesianLinear(unitN, unitN, init_type, rho_init)
-        self.l3 = BayesianLinear(unitN, 10, init_type, rho_init)
+        self.l3 = BayesianLinear(unitN, taskcla[0][1], init_type, rho_init)
+        self.last=torch.nn.ModuleList()
         
+        for t,n in self.taskcla:
+            self.last.append(torch.nn.Linear(400,n))
         
         self.s1 = torch.nn.Linear(28*28, 100)
         self.s2 = torch.nn.Linear(100, 10)
 
-#         self.layer_arr = [self.l1, self.l2, self.l3, self.s1, self.s2]
         self.layer_arr = [self.l1, self.l2, self.l3]
 
 
@@ -87,30 +89,25 @@ class BayesianNetwork(nn.Module):
         x = s = x.view(-1, 28*28)
         x = F.relu(self.l1(x, sample))
         x = F.relu(self.l2(x, sample))
-        x = self.l3(x, sample)
-        x = F.log_softmax(x, dim=1)
+        if self.taskcla[0][1] == 10:
+            x = self.l3(x, sample)
+            y = F.log_softmax(x, dim=1)
+        else:
+            y = []
+            for t,i in self.taskcla:
+                y.append(self.last[t](x))
         
-#         s = F.relu(self.s1(s))
-#         s = F.relu(self.s2(s))
-#         s = F.log_softmax(s, dim=1)
-        
-#         return x, s
-        return x
+        return y
 
     
     def sample_elbo(self, data, target, BATCH_SIZE, samples=5):
-        # outputs = torch.zeros(samples, BATCH_SIZE, 10).to(DEVICE)
         outputs_x = torch.zeros(samples, BATCH_SIZE, 10).cuda()
-#         outputs_s = None
         
         for i in range(samples):
-#             outputs_x[i], outputs_s = self(data, sample=True, saver_net = saver_net)
             outputs_x[i] = self(data, sample=True)
 
         loss_x = F.nll_loss(outputs_x.mean(0), target, reduction='sum')
-#         loss_s = F.nll_loss(outputs_s, target)
         
-#         loss = loss_x + loss_s
         loss = loss_x
         
         return loss
