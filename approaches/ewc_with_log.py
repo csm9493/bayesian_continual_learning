@@ -5,6 +5,7 @@ from copy import deepcopy
 import utils
 sys.path.append('..')
 from arguments import get_args
+import torch.nn.functional as F
 args = get_args()
 
 if args.conv_net:
@@ -15,7 +16,7 @@ else:
 class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
 
-    def __init__(self,model,nepochs=100,sbatch=64,lr=0.05,lr_min=1e-4,lr_factor=3,lr_patience=5,clipgrad=100,args=None, log_name=None):
+    def __init__(self,model,nepochs=100,sbatch=256,lr=0.05,lr_min=1e-4,lr_factor=3,lr_patience=5,clipgrad=100,args=None, log_name=None):
         self.model=model
         self.model_old=None
         self.fisher=None
@@ -30,6 +31,9 @@ class Appr(object):
         self.lr_factor = lr_factor
         self.lr_patience = lr_patience
         self.clipgrad = clipgrad
+        
+        if args.experiment == 'split_mnist' or args.experiment == 'split_notmnist':
+            self.split = True
 
         self.ce=torch.nn.CrossEntropyLoss()
         self.optimizer=self._get_optimizer()
@@ -51,7 +55,7 @@ class Appr(object):
         lr = self.lr
         patience = self.lr_patience
         self.optimizer = self._get_optimizer(lr)
-
+        
         # Loop epochs
         for e in range(self.nepochs):
             # Train
@@ -98,7 +102,7 @@ class Appr(object):
         self.logger.save()
         
         # Update old
-        self.model_old = Net(input_size, taskcla).cuda()
+        self.model_old = Net(input_size, taskcla, unitN = args.unitN).cuda()
         self.model_old.load_state_dict(self.model.state_dict())
         self.model_old.eval()
         utils.freeze_model(self.model_old) # Freeze the weights
@@ -108,7 +112,7 @@ class Appr(object):
             fisher_old={}
             for n,_ in self.model.named_parameters():
                 fisher_old[n]=self.fisher[n].clone()
-        self.fisher=utils.fisher_matrix_diag(t,xtrain,ytrain,self.model,self.criterion)
+        self.fisher=utils.fisher_matrix_diag(t,xtrain,ytrain,self.model,self.criterion, split = self.split)
         if t>0:
             # Watch out! We do not want to keep t models (or fisher diagonals) in memory, therefore we have to merge fisher diagonals
             for n,_ in self.model.named_parameters():
@@ -132,7 +136,10 @@ class Appr(object):
             targets=y[b]
 
             # Forward current model
-            outputs=self.model.forward(images)
+            if self.split:
+                outputs = self.model.forward(images)[t]
+            else:
+                outputs=self.model.forward(images)
             loss=self.criterion(t,outputs,targets)
 
             # Backward
@@ -160,7 +167,11 @@ class Appr(object):
             targets=y[b]
 
             # Forward
-            outputs=self.model.forward(images)
+            if self.split:
+                outputs = self.model.forward(images)[t]
+            else:
+                outputs=self.model.forward(images)
+                
             loss=self.criterion(t,outputs,targets)
             _,pred=outputs.max(1)
             hits=(pred==targets).float()
@@ -184,6 +195,5 @@ class Appr(object):
 #                         loss_reg+=torch.sum(self.fisher[name]*(param_old-param).pow(2))/2
 #                 else:
                 loss_reg+=torch.sum(self.fisher[name]*(param_old-param).pow(2))/2
-
         return self.ce(output,targets)+self.lamb*loss_reg
 
