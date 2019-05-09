@@ -80,14 +80,24 @@ class BayesianConvNetwork(nn.Module):
         
         ncha,size,_=inputsize
         self.taskcla=taskcla
-        self.l1 = BayesianConv2D(1, 32, 3, init_type=init_type, rho_init=rho_init)
-        self.l2 = BayesianConv2D(32, 64, 3, init_type=init_type, rho_init=rho_init)
-        self.l3 = BayesianConv2D(64, 10, 3, init_type=init_type, rho_init=rho_init)
-        
-#         self.s1 = torch.nn.Linear(28*28, 100)
-#         self.s2 = torch.nn.Linear(100, 10)
+        self.conv1=BayesianConv2D(ncha,64,kernel_size=size//8, init_type=init_type, rho_init=rho_init)
+        s=utils.compute_conv_output_size(size,size//8)
+        s=s//2
+        self.conv2=BayesianConv2D(64,128,kernel_size=size//10, init_type=init_type, rho_init=rho_init)
+        s=utils.compute_conv_output_size(s,size//10)
+        s=s//2
+        self.conv3=BayesianConv2D(128,256,kernel_size=2, init_type=init_type, rho_init=rho_init)
+        s=utils.compute_conv_output_size(s,2)
+        s=s//2
+        self.maxpool=torch.nn.MaxPool2d(2)
+        self.relu=torch.nn.ReLU()
 
-#         self.layer_arr = [self.l1, self.l2, self.l3, self.s1, self.s2]
+        self.fc1=torch.nn.Linear(256*s*s,2048)
+        self.fc2=torch.nn.Linear(2048,2048)
+        self.last=torch.nn.ModuleList()
+        for t,n in self.taskcla:
+            self.last.append(torch.nn.Linear(2048,n))
+            
         self.layer_arr = [self.l1, self.l2, self.l3]
 
 
@@ -96,32 +106,18 @@ class BayesianConvNetwork(nn.Module):
         x = F.relu(self.l1(x, sample))
         x = F.relu(self.l2(x, sample))
         x = self.l3(x, sample)
-#         x = nn.AvgPool2d(x, x.size()[2:]) 
         x = F.adaptive_avg_pool2d(x, (1, 1))
         x = torch.squeeze(x)
         x = F.log_softmax(x, dim=1)
         
-#         s = s.view(-1,28*28)
-#         s = F.relu(self.s1(s))
-#         s = F.relu(self.s2(s))
-#         s = F.log_softmax(s, dim=1)
-#         return x, s
         return x
     
     def sample_elbo(self, data, target, BATCH_SIZE, samples=5, saver_net = None):
-        # outputs = torch.zeros(samples, BATCH_SIZE, 10).to(DEVICE)
-        outputs_x = torch.zeros(samples, BATCH_SIZE, 10).cuda()
-#         outputs_s = None
-        
+        outputs = torch.zeros(samples, BATCH_SIZE, 10).cuda()
         for i in range(samples):
-#             outputs_x[i], outputs_s = self(data, sample=True)
-            outputs_x[i] = self(data, sample=True)
+            outputs[i] = self(data, sample=True)
 
-        loss_x = F.nll_loss(outputs_x.mean(0), target, reduction='sum')
-#         loss_s = F.nll_loss(outputs_s, target)
-        
-#         loss = loss_x + loss_s
-        loss = loss_x
+        loss = F.nll_loss(outputs.mean(0), target, reduction='sum')
         
         return loss
     def var_init(self):

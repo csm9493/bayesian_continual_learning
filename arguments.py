@@ -6,8 +6,7 @@ def get_args():
     # Arguments
     parser.add_argument('--seed', type=int, default=0, help='(default=%(default)d)')
     parser.add_argument('--experiment', default='', type=str, required=True,
-                        choices=['mnist2', 'pmnist', 'pmnist2', 'pmnist3', 'pmnist2_task15', 'pmnist2_task50',
-                                 'cifar', 'mixture', 'omniglot','split_mnist','split_notmnist'], help='(default=%(default)s)')
+                        choices=['mnist2', 'pmnist', 'col_pmnist', 'row_pmnist', 'cifar', 'mixture', 'omniglot','split_mnist','split_notmnist'], help='(default=%(default)s)')
     parser.add_argument('--approach', default='', type=str, required=True,
                         choices=['random', 'sgd', 'sgd-frozen', 'sgd_with_log', 'sgd_L2_with_log', 'lwf',
                                  'lwf_with_log', 'lfl', 'ewc', 'ewc_with_log', 'baye', 'baye_fisher','baye_hat', 'imm-mean', 'progressive', 'pathnet',

@@ -49,8 +49,14 @@ if args.experiment == 'mnist2':
     from dataloaders import mnist2 as dataloader
 elif args.experiment == 'pmnist':
     from dataloaders import pmnist as dataloader
+elif args.experiment == 'row_pmnist':
+    from dataloaders import row_pmnist as dataloader
+elif args.experiment == 'col_pmnist':
+    from dataloaders import col_pmnist as dataloader
 elif args.experiment == 'split_mnist':
     from dataloaders import split_mnist as dataloader
+elif args.experiment == 'split_notmnist':
+    from dataloaders import split_notmnist as dataloader
 elif args.experiment == 'cifar':
     from dataloaders import cifar as dataloader
 elif args.experiment == 'mixture':
@@ -101,7 +107,7 @@ elif args.approach == 'joint':
     from approaches import joint as approach
 
 # Args -- Network
-if args.experiment == 'pmnist' or args.experiment == 'split_mnist' or args.experiment == 'split_notmnist':
+if args.experiment == 'pmnist' or args.experiment == 'row_pmnist' or args.experiment == 'col_pmnist' or args.experiment == 'split_mnist' or args.experiment == 'split_notmnist':
     if args.approach == 'hat' or args.approach == 'hat-test':
         from networks import mlp_hat as network
     elif args.approach == 'baye' or args.approach == 'baye_hat' or args.approach == 'baye_fisher':

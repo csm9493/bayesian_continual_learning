@@ -25,13 +25,13 @@ class Net(torch.nn.Module):
 
     def forward(self,x):
         h=x.view(x.size(0),-1)
-        h=F.relu(self.fc1(h))
-        h=F.relu(self.fc2(h))
+        h=self.drop(F.relu(self.fc1(h)))
+        h=self.drop(F.relu(self.fc2(h)))
         if self.taskcla[0][1] == 10:
-            h = self.l(h)
+            y = self.l(h)
         else:
-            y = []
             for t,i in self.taskcla:
+                y = []
                 y.append(self.last[t](h))
         
         return y

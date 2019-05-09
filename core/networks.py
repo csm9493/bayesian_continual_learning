@@ -43,27 +43,14 @@ class BayesianLinear(nn.Module):
 
     def forward(self, input, sample=False):
         if sample:
-            epsilon = self.normal.sample(self.weight_mu.size()).cuda()
-            sigma = torch.log1p(torch.exp(self.weight_rho))
-            mu = self.weight_mu
-            weight = mu + sigma * epsilon
-            
-            epsilon = self.normal.sample(self.bias_mu.size()).cuda()
-            sigma = torch.log1p(torch.exp(self.bias_rho))
-            mu = self.bias_mu
-            bias = mu + sigma * epsilon
+            weight = self.weight.sample()
+            bias = self.weight.sample()
             
         else:
-            
             weight = self.weight.mu
             bias = self.bias.mu
 
         return F.linear(input, weight, bias)
-
-    def variance_init(self):
-        
-        self.weight_rho.data = torch.Tensor(self.out_features, self.in_features).uniform_(self.rho_init,self.rho_init).cuda()
-        self.bias_rho.data = torch.Tensor(self.out_features).uniform_(self.rho_init,self.rho_init).cuda()
 
 class BayesianNetwork(nn.Module):
     def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -2.783, unitN = 400, single_head = True):
@@ -77,7 +64,7 @@ class BayesianNetwork(nn.Module):
         self.last=torch.nn.ModuleList()
         
         for t,n in self.taskcla:
-            self.last.append(torch.nn.Linear(400,n))
+            self.last.append(torch.nn.Linear(unitN,n))
         
         self.s1 = torch.nn.Linear(28*28, 100)
         self.s2 = torch.nn.Linear(100, 10)
@@ -101,19 +88,11 @@ class BayesianNetwork(nn.Module):
 
     
     def sample_elbo(self, data, target, BATCH_SIZE, samples=5):
-        outputs_x = torch.zeros(samples, BATCH_SIZE, 10).cuda()
+        outputs = torch.zeros(samples, BATCH_SIZE, 10).cuda()
         
         for i in range(samples):
-            outputs_x[i] = self(data, sample=True)
+            outputs[i] = self(data, sample=True)
 
-        loss_x = F.nll_loss(outputs_x.mean(0), target, reduction='sum')
-        
-        loss = loss_x
-        
+        loss = F.nll_loss(outputs.mean(0), target, reduction='sum')
         return loss
-    def var_init(self):
-#         self.l1.variance_init()
-#         self.l2.variance_init()
-        self.l3.variance_init()
-        return
 

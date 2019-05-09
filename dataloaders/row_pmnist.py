@@ -37,7 +37,7 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 10):
                 
             arr = (arr/255 - mean) / std
             data[i][s]={}
-            data[i][s]['x'] = arr[:,:,permutation,:].view(-1, size[0], size[1], size[2])
+            data[i][s]['x'] = arr[:,permutation,:].view(-1, size[0], size[1], size[2])
             data[i][s]['y'] = label
             
     # Validation
