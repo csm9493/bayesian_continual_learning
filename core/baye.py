@@ -64,17 +64,15 @@ class Appr(object):
         return torch.optim.Adam(self.model.parameters(), lr=lr)
     
     def sample_elbo(self, model, data, target, BATCH_SIZE, samples=5):
-        outputs_x = torch.zeros(samples, BATCH_SIZE, self.nb_classes).cuda()
+        outputs = torch.zeros(samples, BATCH_SIZE, self.nb_classes).cuda()
         
         for i in range(samples):
             if self.split:
-                outputs_x[i] = F.log_softmax(model(data, sample=True)[self.tasknum], dim=1)
+                outputs[i] = F.log_softmax(model(data, sample=True)[self.tasknum], dim=1)
             else:
-                outputs_x[i] = model(data, sample=True)
+                outputs[i] = model(data, sample=True)
 
-        loss_x = F.nll_loss(outputs_x.mean(0), target, reduction='sum')
-        loss = loss_x
-        
+        loss = F.nll_loss(outputs.mean(0), target, reduction='sum')
         return loss
     
     def train(self, t, xtrain, ytrain, xvalid, yvalid, data, input_size, taskcla):
@@ -199,18 +197,17 @@ class Appr(object):
                 targets = y[b]
 
                 # Forward
-                outputs_x = torch.zeros(samples, len(targets), self.nb_classes).cuda()
+                outputs = torch.zeros(samples, len(targets), self.nb_classes).cuda()
 
                 for i in range(samples):
                     if self.split:
-                        outputs_x[i] = F.log_softmax(self.model(images, sample=args.ensemble)[tasknum],dim=1)
+                        outputs[i] = F.log_softmax(self.model(images, sample=args.ensemble)[tasknum],dim=1)
                     else:
-                        outputs_x[i] = self.model(images, sample=args.ensemble)
-                loss_x = F.nll_loss(outputs_x.mean(0), targets, reduction='sum')
-                loss = loss_x
+                        outputs[i] = self.model(images, sample=args.ensemble)
+                loss = F.nll_loss(outputs.mean(0), targets, reduction='sum')
                 
                 
-                _, pred = outputs_x.mean(0).max(1)
+                _, pred = outputs.mean(0).max(1)
                 hits = (pred == targets).float()
                 
                 total_loss += loss.data.cpu().numpy()
@@ -253,7 +250,7 @@ class Appr(object):
             if isinstance(saver_net, Net) == False or isinstance(trainer_net, Net) == False:
                 return
             """
-
+        for (_, saver_layer), (_, trainer_layer) in zip(saver_net.named_children(), trainer_net.named_children()):
         for i in range(3):
             if self.split and i==2:
                 break
