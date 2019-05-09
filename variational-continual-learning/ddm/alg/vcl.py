@@ -51,6 +51,10 @@ def run_vcl(hidden_size, no_epochs, data_gen, coreset_method, coreset_size=0, ba
         # Save
 
         log_name = '{}_{}_{}_{}epochs_batch{}_{}_{}coreset_{}'.format(train_info['date'], train_info['experiment'], train_info['tasknum'], no_epochs, train_info['batch'], train_info['coreset_method'], coreset_size, train_info['trial'])
+        
+        if single_head:
+            log_name += '_single'
+        
         save_path = './results/' + log_name + '.txt'
         print('Save at ' + save_path)
         np.savetxt(save_path, all_acc_for_save, '%.4f')
