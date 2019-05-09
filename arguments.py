@@ -6,7 +6,7 @@ def get_args():
     # Arguments
     parser.add_argument('--seed', type=int, default=0, help='(default=%(default)d)')
     parser.add_argument('--experiment', default='', type=str, required=True,
-                        choices=['mnist2', 'pmnist', 'col_pmnist', 'row_pmnist', 'cifar', 'mixture', 'omniglot','split_mnist','split_notmnist'], help='(default=%(default)s)')
+                        choices=['mnist2', 'pmnist', 'col_pmnist', 'row_pmnist', 'mixture', 'omniglot','split_mnist','split_notmnist', 'split_cifar100'], help='(default=%(default)s)')
     parser.add_argument('--approach', default='', type=str, required=True,
                         choices=['random', 'sgd', 'sgd-frozen', 'sgd_with_log', 'sgd_L2_with_log', 'lwf',
                                  'lwf_with_log', 'lfl', 'ewc', 'ewc_with_log', 'baye', 'baye_fisher','baye_hat', 'imm-mean', 'progressive', 'pathnet',
@@ -14,6 +14,7 @@ def get_args():
     parser.add_argument('--output', default='', type=str, required=False, help='(default=%(default)s)')
     parser.add_argument('--nepochs', default=50, type=int, required=False, help='(default=%(default)d)')
     parser.add_argument('--unitN', default=400, type=int, required=False, help='(default=%(default)d)')
+    parser.add_argument('--batch_size', default=256, type=int, required=False, help='(default=%(default)d)')
     parser.add_argument('--lr', default=0.05, type=float, required=False, help='(default=%(default)f)')
     parser.add_argument('--lamb', default='50000', type=float, help='(default=%(default)f)')
     parser.add_argument('--beta', default='0.03', type=float, help='(default=%(default)f)')
@@ -28,28 +29,3 @@ def get_args():
     
     args = parser.parse_args()
     return args
-
-
-
-
-
-"""
-parser.add_argument('--tau', default='30', type=float, help='(default=%(default)f)')
-parser.add_argument('--gamma', default='0.001', type=float, help='(default=%(default)f)')
-parser.add_argument('--use-sigmamax', action='store_true', default=False, help='Using sigma max to support coefficient')
-parser.add_argument('--use-sigmamean', action='store_true', default=False, help='Using sigma mean to support coefficient')
-parser.add_argument('--use-sigmainit', action='store_true', default=False, help='Using sigma init to support coefficient')
-parser.add_argument('--use-divide', action='store_true', default=False, help='Using sigma mean to support coefficient')
-parser.add_argument('--normal-reg', action='store_true', default=False, help='Use regularization with normal distribution')
-parser.add_argument('--normal-std-reg', action='store_true', default=False, help='Use regularization with normal distribution and prev posterior')
-parser.add_argument('--sparse', action='store_true', default=False, help='use group sparse')
-parser.add_argument('--reg-max', action='store_true', default=False, help='use reg max')
-parser.add_argument('--reg-min', action='store_true', default=False, help='use reg min')
-parser.add_argument('--L1-min', action='store_true', default=False, help='use L1 reg min')
-parser.add_argument('--L2-min', action='store_true', default=False, help='use L2 reg min')
-parser.add_argument('--prune', action='store_true', default=False, help='use pruning loss')
-parser.add_argument('--node-wise', action='store_true', default=False, help='use node-wise regularization')
-parser.add_argument('--channel-wise', action='store_true', default=False, help='use channel-wise regularization')
-parser.add_argument('--use-slow-update', action='store_true', default=False, help='update per 10% decrease of std')
-parser.add_argument('--var-init', action='store_true', default=False, help='variance init per save')
-"""

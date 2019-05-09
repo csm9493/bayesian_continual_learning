@@ -100,8 +100,3 @@ class BayesianConv2D(_BayesianConvNd):
             bias = self.bias.mu
         
         return F.conv2d(input, weight, bias, self.stride, self.padding, self.dilation, self.groups)
-    
-    def variance_init(self):
-        
-        self.weight_rho.data = torch.Tensor(self.out_features, self.in_features).uniform_(self.rho_init,self.rho_init).cuda()
-        self.bias_rho.data = torch.Tensor(self.out_features).uniform_(self.rho_init,self.rho_init).cuda()

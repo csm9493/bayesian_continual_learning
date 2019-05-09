@@ -19,13 +19,10 @@ class BayesianNetwork(nn.Module):
         for t,n in self.taskcla:
             self.last.append(torch.nn.Linear(unitN,n))
         
-        self.layer_arr = [self.l1, self.l2, self.l3]
-
-
     def forward(self, x, sample=False):
-        x = s = x.view(-1, 28*2
-        x = self.F.relu(self.l1(x, sample))
-        x = self.F.relu(self.l2(x, sample))
+        x = x.view(-1, 28*28)
+        x = F.relu(self.l1(x, sample))
+        x = F.relu(self.l2(x, sample))
         if self.taskcla[0][1] == 10:
             x = self.l3(x, sample)
             y = F.log_softmax(x, dim=1)

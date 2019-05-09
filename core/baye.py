@@ -19,7 +19,7 @@ from bayes_layer import BayesianConv2D
 class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
 
-    def __init__(self, model, model_old, nepochs=100, sbatch=256, sample = 5, lr=0.01, lr_min=1e-4, lr_factor=3, lr_patience=5, clipgrad=100, args=None, log_name=None):
+    def __init__(self, model, model_old, nepochs=100, sbatch=256, sample = 5, lr=0.01, lr_min=1e-5, lr_factor=3, lr_patience=5, clipgrad=100, args=None, log_name=None):
    
         self.model = model
         self.model_old = model_old
@@ -45,7 +45,7 @@ class Appr(object):
         self.saved_iter = 0
         self.grad_sum = 0
         self.split = False
-        if args.experiment == 'split_mnist' or args.experiment == 'split_notmnist':
+        if args.experiment == 'split_mnist' or args.experiment == 'split_notmnist' or args.experiment == 'split_cifar100':
             self.split = True
         
         # self.ce = torch.nn.CrossEntropyLoss()
@@ -129,7 +129,8 @@ class Appr(object):
                     print(' lr={:.1e}'.format(lr), end='')
                     if lr < self.lr_min:
                         print()
-                        #break
+                        if args.conv_net:
+                            break
                     patience = self.lr_patience
                     self.optimizer = self._get_optimizer(lr)
             print()
@@ -238,10 +239,8 @@ class Appr(object):
         L1_mu_bias_reg_sum = 0
         
         if args.conv_net:
-            prev_rho = nn.Parameter(torch.Tensor(1,1,1,1).uniform_(1,1))
+            prev_rho = nn.Parameter(torch.Tensor(3,1,1,1).uniform_(1,1))
             prev_weight_sigma = torch.log1p(torch.exp(prev_rho))
-            if isinstance(saver_net, ConvNet) == False or isinstance(trainer_net, ConvNet) == False:
-                return
         
         else:
             prev_rho = nn.Parameter(torch.Tensor(28*28,1).uniform_(1,1))
@@ -262,14 +261,19 @@ class Appr(object):
             trainer_bias_sigma = torch.log1p(torch.exp(trainer_layer.bias_rho))
             saver_bias_sigma = torch.log1p(torch.exp(saver_layer.bias_rho))
             
-            if isinstance(trainer_layer, BayesianConv2D):
-                out_features, in_features, H, W = saver_weight_mu.shape
+            if len(saver_weight_mu.shape) == 4:
+                out_features, in_features, _, _ = saver_weight_mu.shape
                 curr_sigma = saver_weight_sigma.expand(out_features,in_features,1,1)
                 prev_sigma = prev_weight_sigma.permute(1,0,2,3).expand(out_features,in_features,1,1)
             
             else:
                 out_features, in_features = saver_weight_mu.shape
                 curr_sigma = saver_weight_sigma.expand(out_features,in_features)
+                if len(prev_weight_sigma.shape) == 4:
+                    feature_size = in_features // (prev_weight_sigma.shape[0])
+                    prev_weight_sigma = prev_weight_sigma.reshape(prev_weight_sigma.shape[0],-1)
+                    prev_weight_sigma = prev_weight_sigma.expand(prev_weight_sigma.shape[0], feature_size)
+                    prev_weight_sigma = prev_weight_sigma.reshape(-1,1)
                 prev_sigma = prev_weight_sigma.permute(1,0).expand(out_features,in_features)
             
             L1_sigma = saver_weight_sigma

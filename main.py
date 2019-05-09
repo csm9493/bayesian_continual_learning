@@ -57,8 +57,8 @@ elif args.experiment == 'split_mnist':
     from dataloaders import split_mnist as dataloader
 elif args.experiment == 'split_notmnist':
     from dataloaders import split_notmnist as dataloader
-elif args.experiment == 'cifar':
-    from dataloaders import cifar as dataloader
+elif args.experiment == 'split_cifar100':
+    from dataloaders import split_cifar100 as dataloader
 elif args.experiment == 'mixture':
     from dataloaders import mixture as dataloader
 
@@ -107,7 +107,7 @@ elif args.approach == 'joint':
     from approaches import joint as approach
 
 # Args -- Network
-if args.experiment == 'pmnist' or args.experiment == 'row_pmnist' or args.experiment == 'col_pmnist' or args.experiment == 'split_mnist' or args.experiment == 'split_notmnist':
+if args.experiment == 'pmnist' or args.experiment == 'row_pmnist' or args.experiment == 'col_pmnist' or args.experiment == 'split_mnist' or args.experiment == 'split_notmnist' or args.experiment == 'split_cifar100':
     if args.approach == 'hat' or args.approach == 'hat-test':
         from networks import mlp_hat as network
     elif args.approach == 'baye' or args.approach == 'baye_hat' or args.approach == 'baye_fisher':
@@ -154,7 +154,7 @@ if args.approach == 'baye' and args.conv_net == False:
 elif args.approach == 'baye' and args.conv_net == True:
     net = network.BayesianConvNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho).cuda()
     net_old = network.BayesianConvNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho).cuda()
-    appr = approach.Appr(net, net_old, nepochs=args.nepochs, sample = args.sample, lr=args.lr, args=args, log_name=log_name)
+    appr = approach.Appr(net, net_old, nepochs=args.nepochs, sbatch=args.batch_size, sample = args.sample, lr=args.lr, args=args, log_name=log_name)
     
 else:
     net = network.Net(inputsize, taskcla, unitN=args.unitN).cuda()
