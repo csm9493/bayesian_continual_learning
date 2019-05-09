@@ -68,6 +68,7 @@ class Appr(object):
         
         for i in range(samples):
             if self.split:
+#                 outputs[i] = F.log_softmax(model(data, sample=True)[self.tasknum], dim=1)
                 outputs[i] = F.log_softmax(model(data, sample=True)[self.tasknum], dim=1)
             else:
                 outputs[i] = model(data, sample=True)
@@ -125,7 +126,7 @@ class Appr(object):
             else:
                 patience -= 1
                 if patience <= 0:
-                    lr /= self.lr_factor
+#                     lr /= self.lr_factor
                     print(' lr={:.1e}'.format(lr), end='')
                     if lr < self.lr_min:
                         print()
