@@ -17,6 +17,9 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 10):
     mean = torch.Tensor([0.1307])
     std = torch.Tensor([0.3081])
     dat = {}
+    
+    if not os.path.isdir('../dat/binary_pmnist/'):
+        os.makedirs('../dat/binary_pmnist')
     dat['train'] = datasets.MNIST('../dat/', train=True, download=True)
     dat['test'] = datasets.MNIST('../dat/', train=False, download=True)
     
