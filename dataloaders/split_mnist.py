@@ -33,11 +33,6 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 5):
             loader = torch.utils.data.DataLoader(dat[s], batch_size=1, shuffle=False)
             for image, target in loader:
                 task_idx = target.numpy()[0] // 2
-                if s == 'train':
-                    train_task_arr[task_idx] = train_task_arr[task_idx] + 1
-                if s == 'test':
-                    test_task_arr[task_idx] = test_task_arr[task_idx] + 1
-
                 data[task_idx][s]['x'].append(image)
                 data[task_idx][s]['y'].append(target.numpy()[0]%2)
 

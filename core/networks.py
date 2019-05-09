@@ -14,7 +14,6 @@ class BayesianNetwork(nn.Module):
         self.l1 = BayesianLinear(28*28, unitN, init_type, rho_init)
         self.l2 = BayesianLinear(unitN, unitN, init_type, rho_init)
         self.l3 = BayesianLinear(unitN, taskcla[0][1], init_type, rho_init)
-        self.drop=torch.nn.Dropout(0.5)
         self.last=torch.nn.ModuleList()
         
         for t,n in self.taskcla:
@@ -24,9 +23,9 @@ class BayesianNetwork(nn.Module):
 
 
     def forward(self, x, sample=False):
-        x = s = x.view(-1, 28*28)
-        x = self.drop(F.relu(self.l1(x, sample)))
-        x = self.drop(F.relu(self.l2(x, sample)))
+        x = s = x.view(-1, 28*2
+        x = self.F.relu(self.l1(x, sample))
+        x = self.F.relu(self.l2(x, sample))
         if self.taskcla[0][1] == 10:
             x = self.l3(x, sample)
             y = F.log_softmax(x, dim=1)

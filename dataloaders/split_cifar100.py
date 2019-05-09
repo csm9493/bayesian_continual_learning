@@ -15,11 +15,9 @@ def get(seed=0,pc_valid=0.10):
 
         mean=[x/255 for x in [125.3,123.0,113.9]]
         std=[x/255 for x in [63.0,62.1,66.7]]
-
-
+        
         # CIFAR100
         dat={}
-
         
         dat['train']=datasets.CIFAR100('../dat/',train=True,download=True,
                                        transform=transforms.Compose([transforms.ToTensor(),transforms.Normalize(mean,std)]))
@@ -28,30 +26,29 @@ def get(seed=0,pc_valid=0.10):
         for n in range(10):
             data[n]={}
             data[n]['name']='cifar100'
-            data[n]['ncla']=10
+            data[n]['ncla']=5
             data[n]['train']={'x': [],'y': []}
             data[n]['test']={'x': [],'y': []}
         for s in ['train','test']:
             loader=torch.utils.data.DataLoader(dat[s],batch_size=1,shuffle=False)
             for image,target in loader:
-                n=target.numpy()[0]
-                nn=(n//10)+5
-                data[nn][s]['x'].append(image)
-                data[nn][s]['y'].append(n%20)
+                task_idx = target.numpy()[0] // 5
+                data[task_idx][s]['x'].append(image)
+                data[task_idx][s]['y'].append(target.numpy()[0]%5)
 
         # "Unify" and save
-        for t in data.keys():
+        for t in range(20):
             for s in ['train','test']:
                 data[t][s]['x']=torch.stack(data[t][s]['x']).view(-1,size[0],size[1],size[2])
                 data[t][s]['y']=torch.LongTensor(np.array(data[t][s]['y'],dtype=int)).view(-1)
-                torch.save(data[t][s]['x'], os.path.join(os.path.expanduser('../dat/binary_cifar'),'data'+str(t)+s+'x.bin'))
-                torch.save(data[t][s]['y'], os.path.join(os.path.expanduser('../dat/binary_cifar'),'data'+str(t)+s+'y.bin'))
+                torch.save(data[t][s]['x'], os.path.join(os.path.expanduser('../dat/binary_split_cifar100'),'data'+str(t)+s+'x.bin'))
+                torch.save(data[t][s]['y'], os.path.join(os.path.expanduser('../dat/binary_split_cifar100'),'data'+str(t)+s+'y.bin'))
 
     # Load binary files
     data={}
-    ids=list(shuffle(np.arange(10),random_state=seed))
+    ids=list(shuffle(np.arange(20),random_state=seed))
     print('Task order =',ids)
-    for i in range(10):
+    for i in range(20):
         data[i] = dict.fromkeys(['name','ncla','train','test'])
         for s in ['train','test']:
             data[i][s]={'x':[],'y':[]}
