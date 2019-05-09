@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from torch.nn.modules.utils import _single, _pair, _triple
 
 class Gaussian(object):
     def __init__(self, mu, rho):
@@ -51,23 +51,6 @@ class BayesianLinear(nn.Module):
             bias = self.bias.mu
 
         return F.linear(input, weight, bias)
-    
-from torch.nn.modules.utils import _single, _pair, _triple
-
-class Gaussian(object):
-    def __init__(self, mu, rho):
-        super().__init__()
-        self.mu = mu.cuda()
-        self.rho = rho.cuda()
-        self.normal = torch.distributions.Normal(0,1)
-    
-    @property
-    def sigma(self):
-        return torch.log1p(torch.exp(self.rho))
-
-    def sample(self):
-        epsilon = self.normal.sample(self.mu.size()).cuda()
-        return self.mu + self.sigma * epsilon   
 
 class _BayesianConvNd(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride,padding, dilation, transposed, output_padding, groups, bias, init_type, rho_init):

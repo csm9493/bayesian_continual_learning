@@ -12,9 +12,9 @@ from arguments import get_args
 args = get_args()
 
 from core.networks import BayesianNetwork as Net
-from core.networks import BayesianLinear as BL
+from bayes_layer import BayesianLinear 
 from core.conv_networks import BayesianConvNetwork as ConvNet
-
+from bayes_layer import BayesianConv2D 
 
 class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
@@ -246,17 +246,11 @@ class Appr(object):
         else:
             prev_rho = nn.Parameter(torch.Tensor(28*28,1).uniform_(1,1))
             prev_weight_sigma = torch.log1p(torch.exp(prev_rho))
-            """
-            if isinstance(saver_net, Net) == False or isinstance(trainer_net, Net) == False:
-                return
-            """
+        
         for (_, saver_layer), (_, trainer_layer) in zip(saver_net.named_children(), trainer_net.named_children()):
-        for i in range(3):
-            if self.split and i==2:
-                break
-            trainer_layer = self.model.layer_arr[i]
-            saver_layer = self.model_old.layer_arr[i]
-
+            if isinstance(trainer_layer, BayesianLinear)==False and isinstance(trainer_layer, BayesianConv2D)==False:
+                continue
+            
             # calculate mu regularization
             trainer_weight_mu = trainer_layer.weight_mu
             saver_weight_mu = saver_layer.weight_mu
@@ -268,7 +262,7 @@ class Appr(object):
             trainer_bias_sigma = torch.log1p(torch.exp(trainer_layer.bias_rho))
             saver_bias_sigma = torch.log1p(torch.exp(saver_layer.bias_rho))
             
-            if args.conv_net:
+            if isinstance(trainer_layer, BayesianConv2D):
                 out_features, in_features, H, W = saver_weight_mu.shape
                 curr_sigma = saver_weight_sigma.expand(out_features,in_features,1,1)
                 prev_sigma = prev_weight_sigma.permute(1,0,2,3).expand(out_features,in_features,1,1)
@@ -321,133 +315,3 @@ class Appr(object):
         loss = loss + self.beta * (sigma_weight_reg_sum + sigma_bias_reg_sum) / (mini_batch_size*2)
         
         return loss
-    
-    
-"""
-def slow_update(self):
-    grad_avg = 0
-    grad_cnt = 0
-    for (_, layer) in self.model.named_children():
-        if isinstance(layer, torch.nn.Linear) == False:
-            continue
-        grad_cnt += 1
-        grad_avg += layer.weight.grad.norm(2).cpu().numpy() * 1000
-
-    grad_avg = grad_avg / grad_cnt 
-    grad_sum = sum(self.grad_queue) 
-
-#         if (grad_avg - grad_sum > args.tau) and (self.iteration - self.saved_iter > 30):
-    if self.iteration in self.task_boundary:
-        grad = grad_avg-grad_sum
-        print("SAVED %f"%(args.tau))
-        print(grad)
-        self.saved_iter = self.iteration
-        self.model_old = deepcopy(self.model)
-        self.saved_point.append(self.iteration)
-        self.grad_arr.append(grad)
-        self.saved = 1
-        if args.var_init:
-            self.model.var_init()
-
-    self.grad_queue.append(grad_avg)
-    if len(self.grad_queue) > 30:
-        self.grad_queue.pop(0)
-
-    return
-    
-def print_log(self, e):
-    f = open(self.args.output + '_std_value.txt','a')
-    min_arr = []
-    saver_min_arr = []
-    saver_max_arr = []
-    min_idx_arr = []
-    max_arr = []
-    max_idx_arr = []
-    saver_mean_arr = []
-    mean_arr = []
-    var_arr = []
-    rho_sum_arr = []
-    grad_arr = []
-
-    for (_, saver_layer), (_, trainer_layer) in zip(self.model_old.named_children(), self.model.named_children()):
-        if isinstance(saver_layer, torch.nn.Linear) and isinstance(trainer_layer, torch.nn.Linear):
-            grad = trainer_layer.weight.grad.norm(2).cpu().numpy()
-            grad_arr.append(grad)
-            continue
-
-        rho = torch.log1p(torch.exp(trainer_layer.weight_rho))
-        saver_rho = torch.log1p(torch.exp(saver_layer.weight_rho))
-        rho = rho.data.cpu().numpy()
-
-        saver_rho = saver_rho.data.cpu().numpy()
-        saver_min_arr.append(np.min(saver_rho))
-        saver_max_arr.append(np.max(saver_rho))
-        saver_mean_arr.append(np.mean(saver_rho))
-
-        min_arr.append(np.min(rho))
-        min_idx_arr.append(np.argmin(rho))
-        max_arr.append(np.max(rho))
-        max_idx_arr.append(np.argmax(rho))
-        mean_arr.append(np.mean(rho))
-        var_arr.append(np.var(rho))
-        rho_sum_arr.append(np.sum(rho<np.mean(rho)))
-
-    f.write('Epoch:%d\n'%e)
-
-    f.write(' minimum std:\n')
-    for std in min_arr:
-        f.write('%f '%(std))
-
-    f.write('\n min idx:\n')
-    for idx in min_idx_arr:
-        f.write('%d '%(idx))
-
-    f.write('\n maximum std:\n')
-    for std in max_arr:
-        f.write('%f '%(std))
-
-    f.write('\n max idx:\n')
-    for idx in max_idx_arr:
-        f.write('%d '%(idx))
-
-    f.write('\n max reg strength:\n')
-    for i in range(len(saver_min_arr)):
-        lamb = self.lamb
-        if self.args.use_sigmamax:
-            lamb = lamb * (saver_max_arr[i] ** 2)
-        if self.args.use_sigmamean:
-            lamb = lamb * (saver_mean_arr[i] ** 2)
-
-        f.write('%f '%(lamb / (saver_min_arr[i] ** 2)))
-
-    f.write('\n mean \n')
-    for mean in mean_arr:
-        f.write('%f '%(mean))
-
-    f.write('\n var \n')
-    for var in var_arr:
-        f.write('%f '%(var))
-
-    f.write('\n sum \n')
-    for rho_sum in rho_sum_arr:
-        f.write('%d '%(rho_sum))
-
-    f.write('\n grad \n')
-    for grad in grad_arr:
-        f.write('%f '%(grad))
-
-    f.write('saved point per epoch: ')
-    for point in self.saved_point:
-        f.write('%d '%point)
-
-    f.write('saved grad per epoch: ')
-    for grad in self.grad_arr:
-        f.write('%f '%grad)
-
-    f.write('\n')
-    f.flush()
-    
-
-
-
-"""
