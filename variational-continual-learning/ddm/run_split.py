@@ -1,18 +1,35 @@
 import numpy as np
 import tensorflow as tf
 import gzip
-import cPickle
+import _pickle as cPickle
 import sys
 sys.path.extend(['alg/'])
 import vcl
 import coreset
 import utils
 from copy import deepcopy
+import argparse
+
+parser = argparse.ArgumentParser(description='Continual')
+parser.add_argument('--date', default='', type=str, help='result date')
+parser.add_argument('--experiment', default='smnist', type=str, help='which experiment')
+parser.add_argument('--trial', default=1, type=int, help='what numberth of result')
+parser.add_argument('--batch', default=None, type=int, help='mini batch size')
+parser.add_argument('--epochs', default=120, type=int, help='# of epochs to train')
+parser.add_argument('--singlehead', action='store_true', default=False, help='only one ouput layer')
+parser.add_argument('--tasknum', default=5, type=int, help='# of tasks to train')
+
+
+args = parser.parse_args()
+
+
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
 
 class SplitMnistGenerator():
     def __init__(self):
         f = gzip.open('data/mnist.pkl.gz', 'rb')
-        train_set, valid_set, test_set = cPickle.load(f)
+        train_set, valid_set, test_set = cPickle.load(f, encoding='latin1')
         f.close()
 
         self.X_train = np.vstack((train_set[0], valid_set[0]))
@@ -54,40 +71,48 @@ class SplitMnistGenerator():
             return next_x_train, next_y_train, next_x_test, next_y_test
 
 hidden_size = [256, 256]
-batch_size = None
-no_epochs = 120
-single_head = False
+batch_size = args.batch
+no_epochs = args.epochs
+single_head = args.singlehead
+train_info = {}
+train_info['date'] = args.date
+train_info['experiment'] = args.experiment
+train_info['trial'] = args.trial
+train_info['batch'] = args.batch
+train_info['tasknum'] = args.tasknum
 
 # Run vanilla VCL
-tf.set_random_seed(12)
-np.random.seed(1)
+tf.set_random_seed(11 + args.trial)
+np.random.seed(args.trial)
+
+train_info['coreset_method']='none'
 
 coreset_size = 0
 data_gen = SplitMnistGenerator()
 vcl_result = vcl.run_vcl(hidden_size, no_epochs, data_gen, 
-    coreset.rand_from_batch, coreset_size, batch_size, single_head)
-print vcl_result
+    coreset.rand_from_batch, coreset_size, batch_size, single_head, train_info)
+print (vcl_result)
 
 # Run random coreset VCL
 tf.reset_default_graph()
-tf.set_random_seed(12)
-np.random.seed(1)
-
+tf.set_random_seed(11 + args.trial)
+np.random.seed(args.trial)
+train_info['coreset_method']='random'
 coreset_size = 40
 data_gen = SplitMnistGenerator()
 rand_vcl_result = vcl.run_vcl(hidden_size, no_epochs, data_gen, 
-    coreset.rand_from_batch, coreset_size, batch_size, single_head)
-print rand_vcl_result
+    coreset.rand_from_batch, coreset_size, batch_size, single_head,train_info)
+print (rand_vcl_result)
 
 # Run k-center coreset VCL
 tf.reset_default_graph()
-tf.set_random_seed(12)
-np.random.seed(1)
-
+tf.set_random_seed(11+args.trial)
+np.random.seed(args.trial)
+train_info['coreset_method']='kcenter'
 data_gen = SplitMnistGenerator()
 kcen_vcl_result = vcl.run_vcl(hidden_size, no_epochs, data_gen, 
-    coreset.k_center, coreset_size, batch_size, single_head)
-print kcen_vcl_result
+    coreset.k_center, coreset_size, batch_size, single_head,train_info)
+print (kcen_vcl_result)
 
 # Plot average accuracy
 vcl_avg = np.nanmean(vcl_result, 1)
