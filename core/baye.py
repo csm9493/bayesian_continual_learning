@@ -126,12 +126,13 @@ class Appr(object):
             else:
                 patience -= 1
                 if patience <= 0:
-#                     lr /= self.lr_factor
+                    lr /= self.lr_factor
                     print(' lr={:.1e}'.format(lr), end='')
                     if lr < self.lr_min:
                         print()
                         if args.conv_net:
-                            break
+                            pass
+#                             break
                     patience = self.lr_patience
                     self.optimizer = self._get_optimizer(lr)
             print()

@@ -48,6 +48,7 @@ def get(seed=0,pc_valid=0.10, tasknum = 10):
     
     # Load binary files
     data={}
+    tr_data_arr = []
     ids=list(shuffle(np.arange(10),random_state=seed))
     print('Task order =',ids)
     for i in range(10):
@@ -60,8 +61,9 @@ def get(seed=0,pc_valid=0.10, tasknum = 10):
                                                     'data'+str(ids[i])+s+'y.bin'))
         data[i]['ncla']=len(np.unique(data[i]['train']['y'].numpy()))
         data[i]['name']='cifar100-'+str(ids[i])
+        tr_data_arr.append(len(data[i]['train']['x']))
             
-
+    print(tr_data_arr)
     # Validation
     for t in range(10):
         r=np.arange(data[t]['train']['x'].size(0))
