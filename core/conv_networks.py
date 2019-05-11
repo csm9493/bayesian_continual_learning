@@ -13,22 +13,22 @@ class BayesianConvNetwork(nn.Module):
         
         ncha,size,_=inputsize
         self.taskcla = taskcla
-        self.conv1 = BayesianConv2D(ncha,32,kernel_size=3, padding = 1, init_type=init_type, rho_init=rho_init)
-        s = compute_conv_output_size(size,3, padding = 1)
-        self.conv2 = BayesianConv2D(32,32,kernel_size=3, padding = 1, init_type=init_type, rho_init=rho_init)
-        s = compute_conv_output_size(s,3, padding = 1)
+        self.conv1 = BayesianConv2D(ncha,32,kernel_size=3, init_type=init_type, rho_init=rho_init)
+        s = compute_conv_output_size(size,3)
+        self.conv2 = BayesianConv2D(32,32,kernel_size=3, init_type=init_type, rho_init=rho_init)
+        s = compute_conv_output_size(s,3)
         s = s//2
         
-        self.conv3 = BayesianConv2D(32,64,kernel_size=3, padding = 1, init_type=init_type, rho_init=rho_init)
-        s = compute_conv_output_size(s,3, padding = 1)
-        self.conv4 = BayesianConv2D(64,64,kernel_size=3, padding = 1, init_type=init_type, rho_init=rho_init)
-        s = compute_conv_output_size(s,3, padding = 1)
+        self.conv3 = BayesianConv2D(32,64,kernel_size=3, init_type=init_type, rho_init=rho_init)
+        s = compute_conv_output_size(s,3)
+        self.conv4 = BayesianConv2D(64,64,kernel_size=3, init_type=init_type, rho_init=rho_init)
+        s = compute_conv_output_size(s,3)
         s = s//2
         
         self.maxpool2 = torch.nn.MaxPool2d(2)
         
         self.relu = torch.nn.ReLU()
-        self.fc1 = BayesianLinear(s*s*128,512,init_type = init_type, rho_init = rho_init)
+        self.fc1 = BayesianLinear(s*s*64,512,init_type = init_type, rho_init = rho_init)
         self.last = torch.nn.ModuleList()
         for t,n in self.taskcla:
             self.last.append(torch.nn.Linear(512,n))

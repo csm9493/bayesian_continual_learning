@@ -34,7 +34,11 @@ for arg in vars(args):
 print('=' * 100)
 
 ########################################################################################################################
-
+# Split
+split = False
+split_experiment = ['split_mnist', 'split_nomnist', 'split_cifar100']
+if args.experiment in split_experiment:
+    split = True
 # Seed
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -147,18 +151,18 @@ print('Inits...')
 # print (inputsize,taskcla)
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 if args.approach == 'baye' and args.conv_net == False:
-    net = network.BayesianNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho, unitN=args.unitN).cuda()
-    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho, unitN=args.unitN).cuda()
+    net = network.BayesianNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho, unitN=args.unitN, split = split).cuda()
+    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho, unitN=args.unitN, split = split).cuda()
     appr = approach.Appr(net, net_old, nepochs=args.nepochs, sample = args.sample, lr=args.lr, args=args, log_name=log_name)
 
 elif args.approach == 'baye' and args.conv_net == True:
-    net = network.BayesianConvNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho).cuda()
-    net_old = network.BayesianConvNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho).cuda()
+    net = network.BayesianConvNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho, split = split).cuda()
+    net_old = network.BayesianConvNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho, split = split).cuda()
     appr = approach.Appr(net, net_old, nepochs=args.nepochs, sbatch=args.batch_size, sample = args.sample, lr=args.lr, args=args, log_name=log_name)
     
 else:
-    net = network.Net(inputsize, taskcla, unitN=args.unitN).cuda()
-    net_old = network.Net(inputsize, taskcla, unitN=args.unitN).cuda()
+    net = network.Net(inputsize, taskcla, unitN=args.unitN, split = split).cuda()
+    net_old = network.Net(inputsize, taskcla, unitN=args.unitN, split = split).cuda()
     appr = approach.Appr(net, nepochs=args.nepochs, lr=args.lr, args=args, log_name=log_name)
 
     
@@ -172,8 +176,6 @@ print('-' * 100)
 acc = np.zeros((len(taskcla), len(taskcla)), dtype=np.float32)
 lss = np.zeros((len(taskcla), len(taskcla)), dtype=np.float32)
 for t, ncla in taskcla:
-    if t == args.tasknum:
-        break
     print('*' * 100)
     print('Task {:2d} ({:s})'.format(t, data[t]['name']))
     print('*' * 100)

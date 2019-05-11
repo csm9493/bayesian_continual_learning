@@ -19,7 +19,7 @@ from bayes_layer import BayesianConv2D
 class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
 
-    def __init__(self, model, model_old, nepochs=100, sbatch=256, sample = 5, lr=0.01, lr_min=1e-5, lr_factor=3, lr_patience=5, clipgrad=100, args=None, log_name=None):
+    def __init__(self, model, model_old, nepochs=100, sbatch=256, sample = 5, lr=0.01, lr_min=1e-6, lr_factor=3, lr_patience=5, clipgrad=100, args=None, log_name=None):
    
         self.model = model
         self.model_old = model_old
@@ -68,7 +68,6 @@ class Appr(object):
         
         for i in range(samples):
             if self.split:
-#                 outputs[i] = F.log_softmax(model(data, sample=True)[self.tasknum], dim=1)
                 outputs[i] = F.log_softmax(model(data, sample=True)[self.tasknum], dim=1)
             else:
                 outputs[i] = model(data, sample=True)
@@ -131,8 +130,7 @@ class Appr(object):
                     if lr < self.lr_min:
                         print()
                         if args.conv_net:
-                            pass
-#                             break
+                            break
                     patience = self.lr_patience
                     self.optimizer = self._get_optimizer(lr)
             print()
