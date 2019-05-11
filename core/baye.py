@@ -19,7 +19,7 @@ from bayes_layer import BayesianConv2D
 class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
 
-    def __init__(self, model, model_old, nepochs=100, sbatch=256, sample = 5, lr=0.001, lr_min=5e-5, lr_factor=3, lr_patience=5, clipgrad=100, args=None, log_name=None):
+    def __init__(self, model, model_old, nepochs=100, sbatch=256, lr=0.001, lr_min=1e-4, lr_factor=3, lr_patience=5, clipgrad=100, args=None, log_name=None):
    
         self.model = model
         self.model_old = model_old
@@ -29,7 +29,6 @@ class Appr(object):
 
         self.nepochs = nepochs
         self.sbatch = sbatch
-        self.sample = sample
         self.lr = lr
         self.lr_min = lr_min
         self.lr_factor = lr_factor
@@ -44,7 +43,6 @@ class Appr(object):
         if args.experiment == 'split_mnist' or args.experiment == 'split_notmnist' or args.experiment == 'split_cifar100':
             self.split = True
         
-        # self.ce = torch.nn.CrossEntropyLoss()
         self.optimizer = self._get_optimizer()
         self.beta = args.beta
         if len(args.parameter) >= 1:
@@ -56,20 +54,10 @@ class Appr(object):
 
     def _get_optimizer(self, lr=None):
         if lr is None: lr = self.lr
-        #return torch.optim.SGD(self.model.parameters(), lr=lr)
-        return torch.optim.Adam(self.model.parameters(), lr=lr)
-    
-    def sample_elbo(self, model, data, target, BATCH_SIZE, samples=5):
-        outputs = torch.zeros(samples, BATCH_SIZE, self.nb_classes).cuda()
-        
-        for i in range(samples):
-            if self.split:
-                outputs[i] = F.log_softmax(model(data, sample=True)[self.tasknum], dim=1)
-            else:
-                outputs[i] = model(data, sample=True)
-
-        loss = F.nll_loss(outputs.mean(0), target, reduction='sum')
-        return loss
+        if args.conv_net:
+            return torch.optim.SGD(self.model.parameters(), lr=lr)
+        else:
+            return torch.optim.Adam(self.model.parameters(), lr=lr)
     
     def train(self, t, xtrain, ytrain, xvalid, yvalid, data, input_size, taskcla):
         best_loss = np.inf
@@ -78,7 +66,6 @@ class Appr(object):
         patience = self.lr_patience
         self.optimizer = self._get_optimizer(lr)
         self.nb_classes = taskcla[t][1]
-        self.tasknum = t
         
         # Loop epochs
         for e in range(self.nepochs):
@@ -90,17 +77,17 @@ class Appr(object):
 
             # 1. trainer_net training 하는데 regularization을 위해서 saver_net의 정보 이용
 
-            self.train_epoch(xtrain, ytrain)
+            self.train_epoch(t, xtrain, ytrain)
             
 
             clock1 = time.time()
-            train_loss, train_acc = self.eval(xtrain, ytrain, self.sample, tasknum = t)
+            train_loss, train_acc = self.eval(t, xtrain, ytrain)
             clock2 = time.time()
             print('| Epoch {:3d}, time={:5.1f}ms/{:5.1f}ms | Train: loss={:.3f}, acc={:5.1f}% |'.format(
                 e + 1, 1000 * self.sbatch * (clock1 - clock0) / xtrain.size(0),
                 1000 * self.sbatch * (clock2 - clock1) / xtrain.size(0), train_loss, 100 * train_acc), end='')
             # Valid
-            valid_loss, valid_acc = self.eval(xvalid, yvalid, self.sample, tasknum = t)
+            valid_loss, valid_acc = self.eval(t, xvalid, yvalid)
             print(' Valid: loss={:.3f}, acc={:5.1f}% |'.format(valid_loss, 100 * valid_acc), end='')
 
             # save log for current task & old tasks at every epoch
@@ -108,7 +95,7 @@ class Appr(object):
             for task in range(t):
                 xvalid_t = data[task]['valid']['x'].cuda()
                 yvalid_t = data[task]['valid']['y'].cuda()
-                valid_loss_t, valid_acc_t = self.eval(xvalid_t, yvalid_t, self.sample)
+                valid_loss_t, valid_acc_t = self.eval(t, xvalid_t, yvalid_t)
                 self.logger.add(epoch=(t * self.nepochs) + e, task_num=task + 1, valid_loss=valid_loss_t,
                                 valid_acc=valid_acc_t)
 
@@ -144,7 +131,7 @@ class Appr(object):
 
         return
 
-    def train_epoch(self, x, y):
+    def train_epoch(self,t,x,y):
         self.model.train()
 
         r = np.arange(x.size(0))
@@ -164,17 +151,23 @@ class Appr(object):
 
             # Forward current model
             mini_batch_size = len(targets)
-            loss = self.sample_elbo(self.model,images, targets, mini_batch_size, self.sample)
+            outputs = torch.zeros(1, mini_batch_size, self.nb_classes).cuda()
+            if self.split:
+                outputs[0] = F.log_softmax(self.model(images, sample=True)[t],dim=1)
+            else:
+                outputs[0] = self.model(images, sample=True)
+            loss = F.nll_loss(outputs.mean(0), targets, reduction='sum')
             loss = self.custom_regularization(self.model_old, self.model, mini_batch_size, loss)
             # Backward
             self.optimizer.zero_grad()
             loss.backward()
+            if args.conv_net:
+                torch.nn.utils.clip_grad_norm(self.model.parameters(),self.clipgrad)
             self.optimizer.step()
-            
 
         return
 
-    def eval(self, x, y, samples=5, tasknum = 0):
+    def eval(self,t,x,y):
         total_loss = 0
         total_acc = 0
         total_num = 0
@@ -194,15 +187,13 @@ class Appr(object):
                 targets = y[b]
 
                 # Forward
-                outputs = torch.zeros(samples, len(targets), self.nb_classes).cuda()
-
-                for i in range(samples):
-                    if self.split:
-                        outputs[i] = F.log_softmax(self.model(images, sample=False)[tasknum],dim=1)
-                    else:
-                        outputs[i] = self.model(images, sample=False)
+                mini_batch_size = len(targets)
+                outputs = torch.zeros(1, mini_batch_size, self.nb_classes).cuda()
+                if self.split:
+                    outputs[0] = F.log_softmax(self.model(images, sample=False)[t],dim=1)
+                else:
+                    outputs[0] = self.model(images, sample=False)
                 loss = F.nll_loss(outputs.mean(0), targets, reduction='sum')
-                
                 
                 _, pred = outputs.mean(0).max(1)
                 hits = (pred == targets).float()
@@ -308,10 +299,9 @@ class Appr(object):
         # elbo loss
         loss = loss / mini_batch_size
         # L2 loss
-        loss = loss + (mu_weight_reg_sum + mu_bias_reg_sum) / (mini_batch_size*2)
+        loss = loss + (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
         # L1 loss
         loss = loss + self.saved * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
         # sigma regularization
-        loss = loss + self.beta * (sigma_weight_reg_sum + sigma_bias_reg_sum) / (mini_batch_size*2)
-        
+        loss = loss + self.beta * (sigma_weight_reg_sum + sigma_bias_reg_sum) / (2 * mini_batch_size)
         return loss

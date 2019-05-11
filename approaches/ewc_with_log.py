@@ -9,7 +9,7 @@ import torch.nn.functional as F
 args = get_args()
 
 if args.conv_net:
-    from networks.conv_ewc_LRP import Net
+    from networks.alexnet import Net
 else:
     from networks.mlp import Net
 
@@ -32,7 +32,7 @@ class Appr(object):
         self.lr_patience = lr_patience
         self.clipgrad = clipgrad
         self.split = False
-        if args.experiment == 'split_mnist' or args.experiment == 'split_notmnist':
+        if args.experiment == 'split_mnist' or args.experiment == 'split_notmnist' or args.experiment == 'split_cifar100':
             self.split = True
 
         self.ce=torch.nn.CrossEntropyLoss()
@@ -91,7 +91,8 @@ class Appr(object):
                     print(' lr={:.1e}'.format(lr), end='')
                     if lr < self.lr_min:
                         print()
-                        break
+                        if args.conv_net:
+                            break
                     patience = self.lr_patience
                     self.optimizer = self._get_optimizer(lr)
             print()
@@ -102,7 +103,10 @@ class Appr(object):
         self.logger.save()
         
         # Update old
-        self.model_old = Net(input_size, taskcla, unitN = args.unitN).cuda()
+        if args.conv_net:
+            self.model_old = Net(input_size, taskcla).cuda()
+        else:
+            self.model_old = Net(input_size, taskcla, unitN = args.unitN).cuda()
         self.model_old.load_state_dict(self.model.state_dict())
         self.model_old.eval()
         utils.freeze_model(self.model_old) # Freeze the weights

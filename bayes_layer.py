@@ -29,7 +29,7 @@ class BayesianLinear(nn.Module):
         
         self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features))
         nn.init.kaiming_uniform_(self.weight_mu)
-        self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(-0.2, 0.2))
+        self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(-0.2,0.2))
         
         self.weight_rho = nn.Parameter(torch.Tensor(out_features,1).uniform_(rho_init,rho_init))
         self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(rho_init,rho_init))
@@ -39,7 +39,6 @@ class BayesianLinear(nn.Module):
 
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
         self.bias = Gaussian(self.bias_mu, self.bias_rho)
-        self.normal = torch.distributions.Normal(0,1)
 
     def forward(self, input, sample=False):
         if sample:
@@ -70,10 +69,10 @@ class _BayesianConvNd(nn.Module):
         self.groups = groups
         
         self.weight_mu = nn.Parameter(torch.Tensor(out_channels, in_channels // groups, *kernel_size))
-        nn.init.kaiming_uniform_(self.weight_mu)
+        nn.init.xavier_uniform_(self.weight_mu)
         self.weight_rho = nn.Parameter(torch.Tensor(out_channels, 1, 1, 1).uniform_(rho_init,rho_init))
         
-        self.bias_mu = nn.Parameter(torch.Tensor(out_channels).uniform_(-0.2,0.2))
+        self.bias_mu = nn.Parameter(torch.Tensor(out_channels))
         self.bias_rho = nn.Parameter(torch.Tensor(out_channels).uniform_(rho_init,rho_init))
         
         if init_type != 'random':

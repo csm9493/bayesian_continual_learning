@@ -13,7 +13,7 @@ tstart = time.time()
 
 args = get_args()
 args_std = np.log(1+np.exp(args.rho))
-log_name = '{}_{}_{}_{}_{}_beta_{}_lamb_{}_unitN_{}_batch_{}_{}_{}_{}_{:.4f}'.format(args.date, args.experiment, args.tasknum, args.approach, args.seed, args.beta, args.lamb, args.unitN, args.batch_size, args.nepochs, args.sample, args.lr, args_std)
+log_name = '{}_{}_{}_{}_{}_beta_{}_lamb_{}_unitN_{}_batch_{}_{}_{}_{:.4f}'.format(args.date, args.experiment, args.tasknum, args.approach, args.seed, args.beta, args.lamb, args.unitN, args.batch_size, args.nepochs, args.lr, args_std)
 
 if args.conv_net:
     log_name = log_name + '_conv'
@@ -118,7 +118,7 @@ if args.experiment == 'pmnist' or args.experiment == 'row_pmnist' or args.experi
             from core import networks as network
     else:
         if args.conv_net:
-            from networks import conv_net as network
+            from networks import alexnet as network
         else:
             from networks import mlp as network
 
@@ -148,19 +148,24 @@ print('Inits...')
 # print (inputsize,taskcla)
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 if args.approach == 'baye' and args.conv_net == False:
-    net = network.BayesianNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho, unitN=args.unitN, split = split, drop = args.drop).cuda()
-    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho, unitN=args.unitN, split = split, drop = args.drop).cuda()
-    appr = approach.Appr(net, net_old, nepochs=args.nepochs, sample = args.sample, lr=args.lr, args=args, log_name=log_name)
+    net = network.BayesianNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho, unitN=args.unitN, split = split).cuda()
+    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho, unitN=args.unitN, split = split).cuda()
+    appr = approach.Appr(net, net_old, nepochs=args.nepochs, lr=args.lr, args=args, log_name=log_name)
 
 elif args.approach == 'baye' and args.conv_net == True:
     net = network.BayesianConvNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho).cuda()
     net_old = network.BayesianConvNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho).cuda()
-    appr = approach.Appr(net, net_old, nepochs=args.nepochs, sbatch=args.batch_size, sample = args.sample, lr=args.lr, args=args, log_name=log_name)
+    appr = approach.Appr(net, net_old, nepochs=args.nepochs, sbatch=args.batch_size, lr=args.lr, args=args, log_name=log_name)
     
 else:
-    net = network.Net(inputsize, taskcla, unitN=args.unitN, split = split).cuda()
-    net_old = network.Net(inputsize, taskcla, unitN=args.unitN, split = split).cuda()
-    appr = approach.Appr(net, nepochs=args.nepochs, lr=args.lr, args=args, log_name=log_name)
+    if args.conv_net == False:
+        net = network.Net(inputsize, taskcla, unitN=args.unitN, split = split).cuda()
+        net_old = network.Net(inputsize, taskcla, unitN=args.unitN, split = split).cuda()
+        appr = approach.Appr(net, nepochs=args.nepochs, lr=args.lr, args=args, log_name=log_name)
+    else:
+        net = network.Net(inputsize, taskcla).cuda()
+        net_old = network.Net(inputsize, taskcla).cuda()
+        appr = approach.Appr(net, nepochs=args.nepochs, sbatch=args.batch_size, lr=args.lr, args=args, log_name=log_name)
 
     
 utils.print_model_report(net)
@@ -213,10 +218,7 @@ for t, ncla in taskcla:
     for u in range(t + 1):
         xtest = data[u]['test']['x'].cuda()
         ytest = data[u]['test']['y'].cuda()
-        if args.approach == 'baye' or args.approach == 'baye_hat' or args.approach == 'baye_fisher':
-            test_loss, test_acc = appr.eval(xtest, ytest, tasknum = u)
-        else:
-            test_loss, test_acc = appr.eval(u, xtest, ytest)
+        test_loss, test_acc = appr.eval(u, xtest, ytest)
         print('>>> Test on task {:2d} - {:15s}: loss={:.3f}, acc={:5.1f}% <<<'.format(u, data[u]['name'], test_loss,
                                                                                       100 * test_acc))
         acc[t, u] = test_acc

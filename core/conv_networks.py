@@ -8,49 +8,36 @@ from bayes_layer import BayesianLinear
 from utils import *
 
 class BayesianConvNetwork(nn.Module):
-    def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -2.783, drop = False):
+    def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -2.783):
         super().__init__()
         
         ncha,size,_=inputsize
         self.taskcla = taskcla
         self.drop = drop
         
-        self.conv1 = BayesianConv2D(ncha,64,kernel_size=size//8, init_type=init_type, rho_init=rho_init)
-        s = compute_conv_output_size(size,size//8)
-        s = s//2
-        self.conv2 = BayesianConv2D(64,128,kernel_size=size//10, init_type=init_type, rho_init=rho_init)
-        s = compute_conv_output_size(s,size//10)
-        s = s//2
-        self.conv3 = BayesianConv2D(128,256,kernel_size=2, init_type=init_type, rho_init=rho_init)
-        s = compute_conv_output_size(s,size//10)
-        s = s//2
-        self.maxpool = torch.nn.MaxPool2d(2)
-        self.relu = torch.nn.ReLU()
+        self.conv1 = BayesianConv2D(ncha,128,kernel_size=3, padding=1, init_type=init_type, rho_init=rho_init)
+        s = compute_conv_output_size(size,3,padding=1)
+        self.conv2 = BayesianConv2D(128,256,kernel_size=3, init_type=init_type, rho_init=rho_init)
+        s = compute_conv_output_size(size,3,stride=2)
+        self.conv3 = BayesianConv2D(256,512,kernel_size=3, init_type=init_type, rho_init=rho_init)
+        s = compute_conv_output_size(size,3)
+        self.conv4 = BayesianConv2D(512,1024,kernel_size=3,padding=1,stride=2 init_type=init_type, rho_init=rho_init)
+        s = compute_conv_output_size(size,3,padding=1,stride=2)
+        self.conv5 = BayesianConv2D(1024,2048,kernel_size=3, init_type=init_type, rho_init=rho_init)
+        s = compute_conv_output_size(size,3)
+        self.conv6 = BayesianConv2D(2048,10,kernel_size=3, init_type=init_type, rho_init=rho_init)
+        s = compute_conv_output_size(size,3)
+        self.avgpool = torch.nn.AvgPool2d(s)
         
-        self.drop1=torch.nn.Dropout(0.2)
-        self.drop2=torch.nn.Dropout(0.5)
-        self.fc1 = BayesianLinear(s*s*64,2048,init_type = init_type, rho_init = rho_init)
-        self.fc2 = BayesianLinear(2048,2048,init_type = init_type, rho_init = rho_init)
-        self.last = torch.nn.ModuleList()
-        for t,n in self.taskcla:
-            self.last.append(torch.nn.Linear(2048,n))
+        self.relu = torch.nn.ReLU()
 
     def forward(self, x, sample=False):
-        if self.drop:
-            h=self.maxpool(self.drop1(self.relu(self.conv1(x, sample))))
-            h=self.maxpool(self.drop1(self.relu(self.conv2(h, sample))))
-            h=self.maxpool(self.drop2(self.relu(self.conv3(h, sample))))
-            h=h.view(x.size(0),-1)
-            h=self.drop2(self.relu(self.fc1(h, sample)))
-            h=self.drop2(self.relu(self.fc2(h, sample)))
-        else:
-            h=self.maxpool(self.relu(self.conv1(x, sample)))
-            h=self.maxpool(self.relu(self.conv2(h, sample)))
-            h=self.maxpool(self.relu(self.conv3(h, sample)))
-            h=h.view(x.size(0),-1)
-            h=self.relu(self.fc1(h, sample))
-            h=self.relu(self.fc2(h, sample))
-        
+        h=self.maxpool(self.relu(self.conv1(x, sample)))
+        h=self.maxpool(self.relu(self.conv2(h, sample)))
+        h=self.maxpool(self.relu(self.conv3(h, sample)))
+        h=h.view(x.size(0),-1)
+        h=self.relu(self.fc1(h, sample))
+        h=self.relu(self.fc2(h, sample))
         
         y=[]
         for t,i in self.taskcla:

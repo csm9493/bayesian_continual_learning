@@ -52,8 +52,8 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 5):
             # Load
             for s in ['train', 'test']:
                 data[i][s] = {'x': [], 'y': []}
-                data[i][s]['x'] = torch.load(os.path.join(os.path.expanduser('../dat/binary_pmnist'), 'data' + s + 'x.bin'))
-                data[i][s]['y'] = torch.load(os.path.join(os.path.expanduser('../dat/binary_pmnist'), 'data' + s + 'y.bin'))
+                data[i][s]['x'] = torch.load(os.path.join(os.path.expanduser('../dat/binary_split_mnist'), 'data' + s + 'x.bin'))
+                data[i][s]['y'] = torch.load(os.path.join(os.path.expanduser('../dat/binary_split_mnist'), 'data' + s + 'y.bin'))
         
     for t in range(tasknum):
         data[t]['valid'] = {}
