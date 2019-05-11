@@ -19,7 +19,7 @@ from bayes_layer import BayesianConv2D
 class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
 
-    def __init__(self, model, model_old, nepochs=100, sbatch=256, sample = 5, lr=0.01, lr_min=1e-6, lr_factor=3, lr_patience=5, clipgrad=100, args=None, log_name=None):
+    def __init__(self, model, model_old, nepochs=100, sbatch=256, sample = 5, lr=0.001, lr_min=5e-5, lr_factor=3, lr_patience=5, clipgrad=100, args=None, log_name=None):
    
         self.model = model
         self.model_old = model_old
@@ -40,10 +40,6 @@ class Appr(object):
         self.epoch = 0
         self.saved_point = []
         self.saved = 0
-        self.grad_queue = []
-        self.grad_arr = []
-        self.saved_iter = 0
-        self.grad_sum = 0
         self.split = False
         if args.experiment == 'split_mnist' or args.experiment == 'split_notmnist' or args.experiment == 'split_cifar100':
             self.split = True
@@ -202,9 +198,9 @@ class Appr(object):
 
                 for i in range(samples):
                     if self.split:
-                        outputs[i] = F.log_softmax(self.model(images, sample=args.ensemble)[tasknum],dim=1)
+                        outputs[i] = F.log_softmax(self.model(images, sample=False)[tasknum],dim=1)
                     else:
-                        outputs[i] = self.model(images, sample=args.ensemble)
+                        outputs[i] = self.model(images, sample=False)
                 loss = F.nll_loss(outputs.mean(0), targets, reduction='sum')
                 
                 

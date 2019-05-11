@@ -14,7 +14,7 @@ def get_args():
     parser.add_argument('--output', default='', type=str, required=False, help='(default=%(default)s)')
     parser.add_argument('--nepochs', default=50, type=int, required=False, help='(default=%(default)d)')
     parser.add_argument('--unitN', default=400, type=int, required=False, help='(default=%(default)d)')
-    parser.add_argument('--batch_size', default=256, type=int, required=False, help='(default=%(default)d)')
+    parser.add_argument('--batch-size', default=256, type=int, required=False, help='(default=%(default)d)')
     parser.add_argument('--lr', default=0.05, type=float, required=False, help='(default=%(default)f)')
     parser.add_argument('--lamb', default='50000', type=float, help='(default=%(default)f)')
     parser.add_argument('--beta', default='0.03', type=float, help='(default=%(default)f)')
@@ -24,7 +24,7 @@ def get_args():
     parser.add_argument('--parameter',type=str,default='',help='(default=%(default)s)')
     parser.add_argument('--sample', type = int, default=5, help='Using sigma max to support coefficient')
     parser.add_argument('--dev-num', type = int, default=0, help='Device number')
-    parser.add_argument('--ensemble', action='store_true', default=False, help='Using ensemble')
+    parser.add_argument('--drop', action='store_true', default=False, help='Using ensemble')
     parser.add_argument('--rho', type = float, default=-2.783, help='initial rho')
     
     args = parser.parse_args()

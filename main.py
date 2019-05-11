@@ -13,17 +13,14 @@ tstart = time.time()
 
 args = get_args()
 args_std = np.log(1+np.exp(args.rho))
-log_name = '{}_{}_{}_{}_{}_beta_{}_lamb_{}_unitN_{}_{}_{}_{}_{:.4f}'.format(args.date, args.experiment, args.tasknum, args.approach, args.seed, args.beta, args.lamb, args.unitN, args.nepochs, args.sample, args.lr, args_std)
-
-if args.ensemble == True:
-    log_name = log_name + '_ensemble'
-
-if args.ensemble == False:
-    log_name = log_name + '_no_ensemble'
+log_name = '{}_{}_{}_{}_{}_beta_{}_lamb_{}_unitN_{}_batch_{}_{}_{}_{}_{:.4f}'.format(args.date, args.experiment, args.tasknum, args.approach, args.seed, args.beta, args.lamb, args.unitN, args.batch_size, args.nepochs, args.sample, args.lr, args_std)
 
 if args.conv_net:
     log_name = log_name + '_conv'
 
+if args.drop:
+    log_name = log_name + '_dropout'
+    
 if args.output == '':
     args.output = './result_data/' + log_name + '.txt'
 
@@ -151,13 +148,13 @@ print('Inits...')
 # print (inputsize,taskcla)
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 if args.approach == 'baye' and args.conv_net == False:
-    net = network.BayesianNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho, unitN=args.unitN, split = split).cuda()
-    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho, unitN=args.unitN, split = split).cuda()
+    net = network.BayesianNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho, unitN=args.unitN, split = split, drop = args.drop).cuda()
+    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho, unitN=args.unitN, split = split, drop = args.drop).cuda()
     appr = approach.Appr(net, net_old, nepochs=args.nepochs, sample = args.sample, lr=args.lr, args=args, log_name=log_name)
 
 elif args.approach == 'baye' and args.conv_net == True:
-    net = network.BayesianConvNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho, split = split).cuda()
-    net_old = network.BayesianConvNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho, split = split).cuda()
+    net = network.BayesianConvNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho).cuda()
+    net_old = network.BayesianConvNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho).cuda()
     appr = approach.Appr(net, net_old, nepochs=args.nepochs, sbatch=args.batch_size, sample = args.sample, lr=args.lr, args=args, log_name=log_name)
     
 else:
@@ -176,6 +173,8 @@ print('-' * 100)
 acc = np.zeros((len(taskcla), len(taskcla)), dtype=np.float32)
 lss = np.zeros((len(taskcla), len(taskcla)), dtype=np.float32)
 for t, ncla in taskcla:
+    if t == args.tasknum:
+        break
     print('*' * 100)
     print('Task {:2d} ({:s})'.format(t, data[t]['name']))
     print('*' * 100)

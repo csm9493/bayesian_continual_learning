@@ -6,12 +6,13 @@ import torch.nn.functional as F
 from bayes_layer import BayesianLinear
 
 class BayesianNetwork(nn.Module):
-    def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -2.783, unitN = 400, split = False):
+    def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -2.783, unitN = 400, split = False, drop = False):
         super().__init__()
 
         ncha,size,_=inputsize
         self.taskcla=taskcla
         self.split = split
+        self.drop = drop
         self.drop1=torch.nn.Dropout(0.2)
         self.drop2=torch.nn.Dropout(0.5)
         self.l1 = BayesianLinear(28*28, unitN, init_type, rho_init)
@@ -24,9 +25,15 @@ class BayesianNetwork(nn.Module):
                 self.last.append(torch.nn.Linear(unitN,n))
         
     def forward(self, x, sample=False):
-        x = self.drop1(x.view(-1, 28*28))
-        x = self.drop2(F.relu(self.l1(x, sample)))
-        x = self.drop2(F.relu(self.l2(x, sample)))
+        if self.drop:
+            x = self.drop1(x.view(-1, 28*28))
+            x = self.drop2(F.relu(self.l1(x, sample)))
+            x = self.drop2(F.relu(self.l2(x, sample)))
+        else:
+            x = x.view(-1, 28*28)
+            x = F.relu(self.l1(x, sample))
+            x = F.relu(self.l2(x, sample))
+        
         if self.split:
             y = []
             for t,i in self.taskcla:
@@ -37,14 +44,3 @@ class BayesianNetwork(nn.Module):
             y = F.log_softmax(x, dim=1)
         
         return y
-
-    
-    def sample_elbo(self, data, target, BATCH_SIZE, samples=5):
-        outputs = torch.zeros(samples, BATCH_SIZE, 10).cuda()
-        
-        for i in range(samples):
-            outputs[i] = self(data, sample=True)
-
-        loss = F.nll_loss(outputs.mean(0), target, reduction='sum')
-        return loss
-

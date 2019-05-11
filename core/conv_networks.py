@@ -8,55 +8,51 @@ from bayes_layer import BayesianLinear
 from utils import *
 
 class BayesianConvNetwork(nn.Module):
-    def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -2.783):
+    def __init__(self, inputsize, taskcla, init_type = 'random', rho_init = -2.783, drop = False):
         super().__init__()
         
         ncha,size,_=inputsize
         self.taskcla = taskcla
-        self.conv1 = BayesianConv2D(ncha,32,kernel_size=3, init_type=init_type, rho_init=rho_init)
-        s = compute_conv_output_size(size,3)
-        self.conv2 = BayesianConv2D(32,32,kernel_size=3, init_type=init_type, rho_init=rho_init)
-        s = compute_conv_output_size(s,3)
+        self.drop = drop
+        
+        self.conv1 = BayesianConv2D(ncha,64,kernel_size=size//8, init_type=init_type, rho_init=rho_init)
+        s = compute_conv_output_size(size,size//8)
         s = s//2
-        
-        self.conv3 = BayesianConv2D(32,64,kernel_size=3, init_type=init_type, rho_init=rho_init)
-        s = compute_conv_output_size(s,3)
-        self.conv4 = BayesianConv2D(64,64,kernel_size=3, init_type=init_type, rho_init=rho_init)
-        s = compute_conv_output_size(s,3)
+        self.conv2 = BayesianConv2D(64,128,kernel_size=size//10, init_type=init_type, rho_init=rho_init)
+        s = compute_conv_output_size(s,size//10)
         s = s//2
-        
-        self.maxpool2 = torch.nn.MaxPool2d(2)
-        
+        self.conv3 = BayesianConv2D(128,256,kernel_size=2, init_type=init_type, rho_init=rho_init)
+        s = compute_conv_output_size(s,size//10)
+        s = s//2
+        self.maxpool = torch.nn.MaxPool2d(2)
         self.relu = torch.nn.ReLU()
-        self.fc1 = BayesianLinear(s*s*64,512,init_type = init_type, rho_init = rho_init)
+        
+        self.drop1=torch.nn.Dropout(0.2)
+        self.drop2=torch.nn.Dropout(0.5)
+        self.fc1 = BayesianLinear(s*s*64,2048,init_type = init_type, rho_init = rho_init)
+        self.fc2 = BayesianLinear(2048,2048,init_type = init_type, rho_init = rho_init)
         self.last = torch.nn.ModuleList()
         for t,n in self.taskcla:
-            self.last.append(torch.nn.Linear(512,n))
+            self.last.append(torch.nn.Linear(2048,n))
 
     def forward(self, x, sample=False):
-        h = self.relu(self.conv1(x, sample))
-        h = self.maxpool2(self.relu(self.conv2(h, sample)))
-        h = self.relu(self.conv3(h, sample))
-        h = self.maxpool2(self.relu(self.conv4(h, sample)))
-        h = h.view(x.size(0),-1)
-        h = self.relu(self.fc1(h, sample))
+        if self.drop:
+            h=self.maxpool(self.drop1(self.relu(self.conv1(x, sample))))
+            h=self.maxpool(self.drop1(self.relu(self.conv2(h, sample))))
+            h=self.maxpool(self.drop2(self.relu(self.conv3(h, sample))))
+            h=h.view(x.size(0),-1)
+            h=self.drop2(self.relu(self.fc1(h, sample)))
+            h=self.drop2(self.relu(self.fc2(h, sample)))
+        else:
+            h=self.maxpool(self.relu(self.conv1(x, sample)))
+            h=self.maxpool(self.relu(self.conv2(h, sample)))
+            h=self.maxpool(self.relu(self.conv3(h, sample)))
+            h=h.view(x.size(0),-1)
+            h=self.relu(self.fc1(h, sample))
+            h=self.relu(self.fc2(h, sample))
+        
+        
         y=[]
         for t,i in self.taskcla:
             y.append(self.last[t](h))
         return y
-    
-    def sample_elbo(self, data, target, BATCH_SIZE, samples=5, saver_net = None):
-        outputs = torch.zeros(samples, BATCH_SIZE, 10).cuda()
-        for i in range(samples):
-            outputs[i] = self(data, sample=True)
-
-        loss = F.nll_loss(outputs.mean(0), target, reduction='sum')
-        
-        return loss
-    def var_init(self):
-#         self.l1.variance_init()
-#         self.l2.variance_init()
-        self.l3.variance_init()
-        return
-
-
