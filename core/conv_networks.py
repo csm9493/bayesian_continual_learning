@@ -13,33 +13,28 @@ class BayesianConvNetwork(nn.Module):
         
         ncha,size,_=inputsize
         self.taskcla = taskcla
-        self.drop = drop
         
-        self.conv1 = BayesianConv2D(ncha,128,kernel_size=3, padding=1, init_type=init_type, rho_init=rho_init)
+        self.conv1 = BayesianConv2D(ncha,64,kernel_size=3, padding=1, init_type=init_type, rho_init=rho_init)
+        self.conv1_bn = nn.BatchNorm2d(64)
         s = compute_conv_output_size(size,3,padding=1)
-        self.conv2 = BayesianConv2D(128,256,kernel_size=3, init_type=init_type, rho_init=rho_init)
-        s = compute_conv_output_size(size,3,stride=2)
-        self.conv3 = BayesianConv2D(256,512,kernel_size=3, init_type=init_type, rho_init=rho_init)
-        s = compute_conv_output_size(size,3)
-        self.conv4 = BayesianConv2D(512,1024,kernel_size=3,padding=1,stride=2 init_type=init_type, rho_init=rho_init)
-        s = compute_conv_output_size(size,3,padding=1,stride=2)
-        self.conv5 = BayesianConv2D(1024,2048,kernel_size=3, init_type=init_type, rho_init=rho_init)
-        s = compute_conv_output_size(size,3)
-        self.conv6 = BayesianConv2D(2048,10,kernel_size=3, init_type=init_type, rho_init=rho_init)
-        s = compute_conv_output_size(size,3)
-        self.avgpool = torch.nn.AvgPool2d(s)
+        self.conv2 = BayesianConv2D(64,128,kernel_size=3, stride=2, init_type=init_type, rho_init=rho_init)
+        self.conv2_bn = nn.BatchNorm2d(128)
+        s = compute_conv_output_size(s,3,stride=2)
+        self.conv3 = BayesianConv2D(128,256,kernel_size=3, padding=1, init_type=init_type, rho_init=rho_init)
+        self.conv3_bn = nn.BatchNorm2d(256)
+        s = compute_conv_output_size(s,3,padding=1)
+        self.conv4 = BayesianConv2D(256,10,kernel_size=3, stride=2, init_type=init_type, rho_init=rho_init)
+        s = compute_conv_output_size(s,3,stride=2)
+        self.AvgPool = torch.nn.AvgPool2d(s)
         
         self.relu = torch.nn.ReLU()
 
     def forward(self, x, sample=False):
-        h=self.maxpool(self.relu(self.conv1(x, sample)))
-        h=self.maxpool(self.relu(self.conv2(h, sample)))
-        h=self.maxpool(self.relu(self.conv3(h, sample)))
-        h=h.view(x.size(0),-1)
-        h=self.relu(self.fc1(h, sample))
-        h=self.relu(self.fc2(h, sample))
+        h=self.relu(self.conv1_bn(self.conv1(x,sample)))
+        h=self.relu(self.conv2_bn(self.conv2(h,sample)))
+        h=self.relu(self.conv3_bn(self.conv3(h,sample)))
+        h=self.relu(self.conv4(h,sample))
+        y=self.AvgPool(h)
+        y=F.log_softmax(y.squeeze(),dim=1)
         
-        y=[]
-        for t,i in self.taskcla:
-            y.append(self.last[t](h))
         return y

@@ -40,7 +40,7 @@ class Appr(object):
         self.saved_point = []
         self.saved = 0
         self.split = False
-        if args.experiment == 'split_mnist' or args.experiment == 'split_notmnist' or args.experiment == 'split_cifar100':
+        if args.experiment == 'split_mnist' or args.experiment == 'split_notmnist':
             self.split = True
         
         self.optimizer = self._get_optimizer()
