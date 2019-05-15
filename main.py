@@ -18,8 +18,6 @@ log_name = '{}_{}_{}_{}_{}_beta_{}_lamb_{}_unitN_{}_batch_{}_{}_{}_{:.4f}'.forma
 if args.conv_net:
     log_name = log_name + '_conv'
 
-if args.drop:
-    log_name = log_name + '_dropout'
     
 if args.output == '':
     args.output = './result_data/' + log_name + '.txt'

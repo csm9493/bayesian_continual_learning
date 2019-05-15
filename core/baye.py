@@ -40,7 +40,7 @@ class Appr(object):
         self.saved_point = []
         self.saved = 0
         self.split = False
-        if args.experiment == 'split_mnist' or args.experiment == 'split_notmnist':
+        if args.experiment == 'split_mnist' or args.experiment == 'split_notmnist' or args.experiment == 'split_cifar100':
             self.split = True
         
         self.optimizer = self._get_optimizer()
@@ -299,7 +299,7 @@ class Appr(object):
         # elbo loss
         loss = loss / mini_batch_size
         # L2 loss
-        loss = loss + (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
+        loss = loss + args.lamb*(mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
         # L1 loss
         loss = loss + self.saved * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
         # sigma regularization

@@ -23,18 +23,26 @@ class BayesianConvNetwork(nn.Module):
         self.conv3 = BayesianConv2D(128,256,kernel_size=3, padding=1, init_type=init_type, rho_init=rho_init)
         self.conv3_bn = nn.BatchNorm2d(256)
         s = compute_conv_output_size(s,3,padding=1)
-        self.conv4 = BayesianConv2D(256,10,kernel_size=3, stride=2, init_type=init_type, rho_init=rho_init)
+        self.conv4 = BayesianConv2D(256,256,kernel_size=3, stride=2, init_type=init_type, rho_init=rho_init)
+        self.conv4_bn = nn.BatchNorm2d(256)
         s = compute_conv_output_size(s,3,stride=2)
         self.AvgPool = torch.nn.AvgPool2d(s)
         
+        self.last=torch.nn.ModuleList()
+        
+        for t,n in self.taskcla:
+            self.last.append(torch.nn.Linear(256,n))
         self.relu = torch.nn.ReLU()
 
     def forward(self, x, sample=False):
         h=self.relu(self.conv1_bn(self.conv1(x,sample)))
         h=self.relu(self.conv2_bn(self.conv2(h,sample)))
         h=self.relu(self.conv3_bn(self.conv3(h,sample)))
-        h=self.relu(self.conv4(h,sample))
-        y=self.AvgPool(h)
-        y=F.log_softmax(y.squeeze(),dim=1)
+        h=self.relu(self.conv4_bn(self.conv4(h,sample)))
+        h=self.AvgPool(h)
+        h=h.squeeze()
+        y = []
+        for t,i in self.taskcla:
+            y.append(self.last[t](h))
         
         return y

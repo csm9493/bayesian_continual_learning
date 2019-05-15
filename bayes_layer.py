@@ -39,11 +39,19 @@ class BayesianLinear(nn.Module):
 
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
         self.bias = Gaussian(self.bias_mu, self.bias_rho)
+        self.normal = torch.distributions.Normal(0,1)
 
     def forward(self, input, sample=False):
         if sample:
-            weight = self.weight.sample()
-            bias = self.bias.sample()
+            epsilon = self.normal.sample(self.weight_mu.size()).cuda()
+            sigma = torch.log1p(torch.exp(self.weight_rho))
+            mu = self.weight_mu
+            weight = mu + sigma * epsilon
+            
+            epsilon = self.normal.sample(self.bias_mu.size()).cuda()
+            sigma = torch.log1p(torch.exp(self.bias_rho))
+            mu = self.bias_mu
+            bias = mu + sigma * epsilon
             
         else:
             weight = self.weight.mu
