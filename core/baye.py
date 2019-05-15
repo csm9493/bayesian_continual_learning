@@ -264,7 +264,8 @@ class Appr(object):
                 prev_sigma = prev_weight_sigma.permute(1,0).expand(out_features,in_features)
             
             L1_sigma = saver_weight_sigma
-            L2_sigma = torch.min(curr_sigma, prev_sigma)
+#             L2_sigma = torch.min(curr_sigma, prev_sigma)
+            L2_sigma = torch.max(curr_sigma, prev_sigma)
             prev_weight_sigma = saver_weight_sigma
             
             mu_weight_reg = (torch.div(trainer_weight_mu-saver_weight_mu, L2_sigma)).norm(2)**2
