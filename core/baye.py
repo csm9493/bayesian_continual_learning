@@ -300,7 +300,7 @@ class Appr(object):
         # elbo loss
         loss = loss / mini_batch_size
         # L2 loss
-        loss = loss + args.lamb*(mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
+        loss = loss + (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
         # L1 loss
         loss = loss + self.saved * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
         # sigma regularization
