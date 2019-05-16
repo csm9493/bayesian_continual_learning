@@ -273,20 +273,19 @@ class Appr(object):
             
 #             L1_mu_weight_reg = (torch.div(saver_weight_mu**2,L1_sigma**2)*(trainer_weight_mu - saver_weight_mu)).norm(1)
 #             L1_mu_bias_reg = (torch.div(saver_bias_mu**2,saver_bias_sigma**2)*(trainer_bias_mu - saver_bias_mu)).norm(1)
-            L1_mu_weight_reg = (torch.div(trainer_weight_mu-saver_weight_mu, L2_sigma**2)).norm(1)
-            L1_mu_bias_reg = (torch.div(trainer_weight_mu-saver_weight_mu, L2_sigma**2)).norm(1)
             
             std_init = np.log(1+np.exp(self.args.rho))
-            
+
+            freeze_weight_reg = ((L2_sigma < std_init).float() * 1000)
+            freeze_bias_reg = ((saver_bias_sigma < std_init).float() * 1000)
+    
+            L1_mu_weight_reg = (freeze_weight_reg*(trainer_weight_mu-saver_weight_mu)).norm(1)
+            L1_mu_bias_reg = (freeze_bias_reg*(trainer_bias_mu-saver_bias_mu)).norm(1)
+        
             mu_weight_reg = mu_weight_reg * (std_init ** 2)
             mu_bias_reg = mu_bias_reg * (std_init ** 2)
             L1_mu_weight_reg = L1_mu_weight_reg * (std_init ** 2)
             L1_mu_bias_reg = L1_mu_bias_reg * (std_init ** 2)
-            
-            
-            if out_features != 10:
-                weight_capacity = out_features / (out_features - torch.sum(saver_weight_sigma < std_init))
-                bias_capacity = out_features / (out_features - torch.sum(saver_bias_sigma < std_init))
             
             weight_sigma = trainer_weight_sigma**2 / saver_weight_sigma**2
             bias_sigma = trainer_bias_sigma**2 / saver_bias_sigma**2
@@ -294,15 +293,11 @@ class Appr(object):
             normal_weight_sigma = trainer_weight_sigma**2
             normal_bias_sigma = trainer_bias_sigma**2
             
-            sigma_weight_reg_sum += (weight_sigma - torch.log(weight_sigma)).sum() * weight_capacity
-            sigma_weight_reg_sum += (normal_weight_sigma - torch.log(normal_weight_sigma)).sum() * weight_capacity
-            sigma_bias_reg_sum += (bias_sigma - torch.log(bias_sigma)).sum() * bias_capacity
-            sigma_bias_reg_sum += (normal_bias_sigma - torch.log(normal_bias_sigma)).sum() * bias_capacity
             
-#             sigma_weight_reg_sum += (weight_sigma - torch.log(weight_sigma)).sum()
-#             sigma_weight_reg_sum += (normal_weight_sigma - torch.log(normal_weight_sigma)).sum()
-#             sigma_bias_reg_sum += (bias_sigma - torch.log(bias_sigma)).sum()
-#             sigma_bias_reg_sum += (normal_bias_sigma - torch.log(normal_bias_sigma)).sum()
+            sigma_weight_reg_sum += (weight_sigma - torch.log(weight_sigma)).sum()
+            sigma_weight_reg_sum += (normal_weight_sigma - torch.log(normal_weight_sigma)).sum()
+            sigma_bias_reg_sum += (bias_sigma - torch.log(bias_sigma)).sum()
+            sigma_bias_reg_sum += (normal_bias_sigma - torch.log(normal_bias_sigma)).sum()
             
             
             mu_weight_reg_sum += mu_weight_reg
@@ -312,10 +307,10 @@ class Appr(object):
         
         # elbo loss
         loss = loss / mini_batch_size
-        # L2 loss
-        loss = loss + (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
+#         # L2 loss
+#         loss = loss + (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
         # L1 loss
-        loss = loss + self.saved * 0.05 * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
+        loss = loss + self.saved *  (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
         # sigma regularization
         loss = loss + self.beta * (sigma_weight_reg_sum + sigma_bias_reg_sum) / (2 * mini_batch_size)
         return loss
