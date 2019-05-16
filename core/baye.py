@@ -268,18 +268,18 @@ class Appr(object):
             L2_sigma = torch.max(curr_sigma, prev_sigma)
             prev_weight_sigma = saver_weight_sigma
             
-            mu_weight_reg = (torch.div(trainer_weight_mu-saver_weight_mu, L2_sigma)).norm(2)**2
-            mu_bias_reg = (torch.div(trainer_bias_mu-saver_bias_mu, saver_bias_sigma)).norm(2)**2
+#             mu_weight_reg = (torch.div(trainer_weight_mu-saver_weight_mu, L2_sigma)).norm(2)**2
+#             mu_bias_reg = (torch.div(trainer_bias_mu-saver_bias_mu, saver_bias_sigma)).norm(2)**2
             
-#             L1_mu_weight_reg = (torch.div(saver_weight_mu**2,L1_sigma**2)*(trainer_weight_mu - saver_weight_mu)).norm(1)
-#             L1_mu_bias_reg = (torch.div(saver_bias_mu**2,saver_bias_sigma**2)*(trainer_bias_mu - saver_bias_mu)).norm(1)
+            mu_weight_reg = (torch.div(saver_weight_mu,L1_sigma)*(trainer_weight_mu - saver_weight_mu)).norm(2)**2
+            mu_bias_reg = (torch.div(saver_bias_mu,saver_bias_sigma)*(trainer_bias_mu - saver_bias_mu)).norm(2)**2
+    
+            L1_mu_weight_reg = (torch.div(saver_weight_mu**2,L1_sigma**2)*(trainer_weight_mu - saver_weight_mu)).norm(1)
+            L1_mu_bias_reg = (torch.div(saver_bias_mu**2,saver_bias_sigma**2)*(trainer_bias_mu - saver_bias_mu)).norm(1)
             
             std_init = np.log(1+np.exp(self.args.rho))
 
-            freeze_weight_reg = ((L2_sigma < std_init).float() * 1000)
-            freeze_bias_reg = ((saver_bias_sigma < std_init).float() * 1000)
-    
-            L1_mu_weight_reg = (freeze_weight_reg*(trainer_weight_mu-saver_weight_mu)).norm(1)
+            
             L1_mu_bias_reg = (freeze_bias_reg*(trainer_bias_mu-saver_bias_mu)).norm(1)
         
             mu_weight_reg = mu_weight_reg * (std_init ** 2)
@@ -307,8 +307,8 @@ class Appr(object):
         
         # elbo loss
         loss = loss / mini_batch_size
-#         # L2 loss
-#         loss = loss + (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
+        # L2 loss
+        loss = loss + 10 * (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
         # L1 loss
         loss = loss + self.saved *  (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
         # sigma regularization
