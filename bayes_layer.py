@@ -69,14 +69,22 @@ class _BayesianConvNd(nn.Module):
         self.groups = groups
         
         self.weight_mu = nn.Parameter(torch.Tensor(out_channels, in_channels // groups, *kernel_size))
-        nn.init.xavier_uniform_(self.weight_mu)
+        nn.init.kaiming_uniform_(self.weight_mu)
         self.weight_rho = nn.Parameter(torch.Tensor(out_channels, 1, 1, 1).uniform_(rho_init,rho_init))
         
         self.bias_mu = nn.Parameter(torch.Tensor(out_channels))
         self.bias_rho = nn.Parameter(torch.Tensor(out_channels).uniform_(rho_init,rho_init))
         
         if init_type != 'random':
-            nn.init.uniform_(self.weight_rho,0.541,0.541)
+            max_rho = 0.541
+            if init_type == '20':
+                max_rho = np.log((1+np.exp(rho_init))**20-1)
+            elif init_type == 'in_features':
+                max_rho = np.log((1+np.exp(rho_init))**np.sqrt(in_channels)-1)
+            elif init_type == 'out_features':
+                max_rho = np.log((1+np.exp(rho_init))**np.sqrt(out_channels)-1)
+            
+            nn.init.uniform_(self.weight_rho, max_rho, max_rho)
             
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
         self.bias = Gaussian(self.bias_mu, self.bias_rho)
@@ -99,3 +107,4 @@ class BayesianConv2D(_BayesianConvNd):
             bias = self.bias.mu
         
         return F.conv2d(input, weight, bias, self.stride, self.padding, self.dilation, self.groups)
+    

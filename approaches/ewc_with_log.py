@@ -9,7 +9,7 @@ import torch.nn.functional as F
 args = get_args()
 
 if args.conv_net:
-    from networks.alexnet import Net
+    from networks.conv_net import Net
 else:
     from networks.mlp import Net
 
@@ -47,7 +47,8 @@ class Appr(object):
 
     def _get_optimizer(self,lr=None):
         if lr is None: lr=self.lr
-        return torch.optim.SGD(self.model.parameters(),lr=lr)
+#         return torch.optim.SGD(self.model.parameters(),lr=lr)
+        return torch.optim.Adam(self.model.parameters(), lr=lr)
 
     def train(self, t, xtrain, ytrain, xvalid, yvalid, data, input_size, taskcla):
         best_loss = np.inf
@@ -143,13 +144,13 @@ class Appr(object):
             if self.split:
                 outputs = self.model.forward(images)[t]
             else:
-                outputs=self.model.forward(images)
+                outputs = self.model.forward(images)
             loss=self.criterion(t,outputs,targets)
 
             # Backward
             self.optimizer.zero_grad()
             loss.backward()
-            torch.nn.utils.clip_grad_norm(self.model.parameters(),self.clipgrad)
+#             torch.nn.utils.clip_grad_norm(self.model.parameters(),self.clipgrad)
             self.optimizer.step()
 
         return
@@ -172,12 +173,12 @@ class Appr(object):
 
             # Forward
             if self.split:
-                outputs = self.model.forward(images)[t]
+                output = self.model.forward(images)[t]
             else:
-                outputs=self.model.forward(images)
+                output = self.model.forward(images)
                 
-            loss=self.criterion(t,outputs,targets)
-            _,pred=outputs.max(1)
+            loss=self.criterion(t,output,targets)
+            _,pred=output.max(1)
             hits=(pred==targets).float()
 
             # Log

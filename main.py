@@ -18,10 +18,12 @@ log_name = '{}_{}_{}_{}_{}_beta_{}_lamb_{}_unitN_{}_batch_{}_{}_{}_{:.4f}'.forma
 if args.conv_net:
     log_name = log_name + '_conv'
 
+log_name = log_name +'_'+ args.init_type
     
 if args.output == '':
     args.output = './result_data/' + log_name + '.txt'
 
+    
 print('=' * 100)
 print('Arguments =')
 for arg in vars(args):
@@ -31,13 +33,12 @@ print('=' * 100)
 ########################################################################################################################
 # Split
 split = False
-split_experiment = ['split_mnist', 'split_nomnist', 'split_cifar100']
+split_experiment = ['split_mnist', 'split_nomnist', 'split_cifar100','split_cifar10_100']
 if args.experiment in split_experiment:
     split = True
 # Seed
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
-torch.cuda.set_device(args.dev_num)
 if torch.cuda.is_available():
     torch.cuda.manual_seed(args.seed)
 else:
@@ -58,6 +59,8 @@ elif args.experiment == 'split_notmnist':
     from dataloaders import split_notmnist as dataloader
 elif args.experiment == 'split_cifar100':
     from dataloaders import split_cifar100 as dataloader
+elif args.experiment == 'split_cifar10_100':
+    from dataloaders import split_cifar10_100 as dataloader
 elif args.experiment == 'mixture':
     from dataloaders import mixture as dataloader
 
@@ -106,7 +109,7 @@ elif args.approach == 'joint':
     from approaches import joint as approach
 
 # Args -- Network
-if args.experiment == 'pmnist' or args.experiment == 'row_pmnist' or args.experiment == 'col_pmnist' or args.experiment == 'split_mnist' or args.experiment == 'split_notmnist' or args.experiment == 'split_cifar100':
+if args.experiment == 'pmnist' or args.experiment == 'row_pmnist' or args.experiment == 'col_pmnist' or args.experiment == 'split_mnist' or args.experiment == 'split_notmnist' or args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100':
     if args.approach == 'hat' or args.approach == 'hat-test':
         from networks import mlp_hat as network
     elif args.approach == 'baye' or args.approach == 'baye_hat' or args.approach == 'baye_fisher':
@@ -116,7 +119,8 @@ if args.experiment == 'pmnist' or args.experiment == 'row_pmnist' or args.experi
             from core import networks as network
     else:
         if args.conv_net:
-            from networks import alexnet as network
+            from networks import conv_net as network
+#             from networks import alexnet as network
         else:
             from networks import mlp as network
 
@@ -133,7 +137,7 @@ else:
         from networks import alexnet_hat_test as network
     else:
         from networks import alexnet as network
-
+        
 ########################################################################################################################
 
 # Load
@@ -152,7 +156,7 @@ if args.approach == 'baye' and args.conv_net == False:
 
 elif args.approach == 'baye' and args.conv_net == True:
     net = network.BayesianConvNetwork(inputsize, taskcla, init_type='random', rho_init=args.rho).cuda()
-    net_old = network.BayesianConvNetwork(inputsize, taskcla, init_type='zero', rho_init=args.rho).cuda()
+    net_old = network.BayesianConvNetwork(inputsize, taskcla, init_type=args.init_type, rho_init=args.rho).cuda()
     appr = approach.Appr(net, net_old, nepochs=args.nepochs, sbatch=args.batch_size, lr=args.lr, args=args, log_name=log_name)
     
 else:
