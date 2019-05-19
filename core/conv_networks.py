@@ -16,26 +16,26 @@ class BayesianConvNetwork(nn.Module):
         ncha,size,_=inputsize
         self.taskcla = taskcla
         
-        self.conv1 = BayesianConv2D(ncha,512,kernel_size=3, padding=1, init_type=init_type, rho_init=rho_init)
-        self.conv1_bn = nn.BatchNorm2d(512)
-        s = compute_conv_output_size(size,3,padding=1)
-        self.conv2 = BayesianConv2D(512,256,kernel_size=3, padding=1, init_type=init_type, rho_init=rho_init)
+        self.conv1 = BayesianConv2D(ncha,256,kernel_size=3, init_type=init_type, rho_init=rho_init)
+        self.conv1_bn = nn.BatchNorm2d(256)
+        s = compute_conv_output_size(size,3)
+        self.conv2 = BayesianConv2D(256,256,kernel_size=3, init_type=init_type, rho_init=rho_init)
         self.conv2_bn = nn.BatchNorm2d(256)
-        s = compute_conv_output_size(size,3,padding=1)
+        s = compute_conv_output_size(size,3)
         s = s//2
-        self.conv3 = BayesianConv2D(256,256,kernel_size=3, padding=1, init_type=init_type, rho_init=rho_init)
+        self.conv3 = BayesianConv2D(256,256,kernel_size=3, init_type=init_type, rho_init=rho_init)
         self.conv3_bn = nn.BatchNorm2d(256)
-        s = compute_conv_output_size(s,3,padding=1)
-        self.conv4 = BayesianConv2D(256,128,kernel_size=3, padding=1, init_type=init_type, rho_init=rho_init)
+        s = compute_conv_output_size(s,3)
+        self.conv4 = BayesianConv2D(256,128,kernel_size=3, init_type=init_type, rho_init=rho_init)
         self.conv4_bn = nn.BatchNorm2d(128)
-        s = compute_conv_output_size(s,3,padding=1)
+        s = compute_conv_output_size(s,3)
         s = s//2
-        self.conv5 = BayesianConv2D(128,128,kernel_size=3, padding=1, init_type=init_type, rho_init=rho_init)
+        self.conv5 = BayesianConv2D(128,128,kernel_size=3, init_type=init_type, rho_init=rho_init)
         self.conv5_bn = nn.BatchNorm2d(128)
-        s = compute_conv_output_size(s,3,padding=1)
-        self.conv6 = BayesianConv2D(128,64,kernel_size=3, padding=1, init_type=init_type, rho_init=rho_init)
-        self.conv6_bn = nn.BatchNorm2d(64)
-        s = compute_conv_output_size(s,3,padding=1)
+        s = compute_conv_output_size(s,3)
+        self.conv6 = BayesianConv2D(128,128,kernel_size=3, init_type=init_type, rho_init=rho_init)
+        self.conv6_bn = nn.BatchNorm2d(128)
+        s = compute_conv_output_size(s,3)
         
         self.AvgPool = torch.nn.AvgPool2d(s)
         self.MaxPool = torch.nn.MaxPool2d(2)
@@ -43,7 +43,7 @@ class BayesianConvNetwork(nn.Module):
         self.last=torch.nn.ModuleList()
         
         for t,n in self.taskcla:
-            self.last.append(torch.nn.Linear(64,n))
+            self.last.append(torch.nn.Linear(128,n))
         self.relu = torch.nn.ReLU()
 
     def forward(self, x, sample=False):
