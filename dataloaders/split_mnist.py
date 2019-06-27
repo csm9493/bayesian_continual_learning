@@ -40,8 +40,8 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 5):
             for s in ['train', 'test']:
                 data[i][s]['x'] = torch.stack(data[i][s]['x'])
                 data[i][s]['y'] = torch.LongTensor(np.array(data[i][s]['y'], dtype=int)).view(-1)
-                torch.save(data[i][s]['x'],os.path.join(os.path.expanduser('../dat/binary_split_mnist'), 'data' + s + 'x.bin'))
-                torch.save(data[i][s]['y'],os.path.join(os.path.expanduser('../dat/binary_split_mnist'), 'data' + s + 'y.bin'))
+                torch.save(data[i][s]['x'],os.path.join(os.path.expanduser('../dat/binary_split_mnist'), 'data'+ str(i) + s + 'x.bin'))
+                torch.save(data[i][s]['y'],os.path.join(os.path.expanduser('../dat/binary_split_mnist'), 'data'+ str(i) + s + 'y.bin'))
     else:
         # Load binary files
         for i in range(5):
@@ -52,8 +52,8 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 5):
             # Load
             for s in ['train', 'test']:
                 data[i][s] = {'x': [], 'y': []}
-                data[i][s]['x'] = torch.load(os.path.join(os.path.expanduser('../dat/binary_split_mnist'), 'data' + s + 'x.bin'))
-                data[i][s]['y'] = torch.load(os.path.join(os.path.expanduser('../dat/binary_split_mnist'), 'data' + s + 'y.bin'))
+                data[i][s]['x'] = torch.load(os.path.join(os.path.expanduser('../dat/binary_split_mnist'), 'data'+ str(i) + s + 'x.bin'))
+                data[i][s]['y'] = torch.load(os.path.join(os.path.expanduser('../dat/binary_split_mnist'), 'data'+ str(i) + s + 'y.bin'))
         
     for t in range(tasknum):
         data[t]['valid'] = {}

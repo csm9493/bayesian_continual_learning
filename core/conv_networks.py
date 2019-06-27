@@ -16,47 +16,36 @@ class BayesianConvNetwork(nn.Module):
         ncha,size,_=inputsize
         self.taskcla = taskcla
         
-        self.conv1 = BayesianConv2D(ncha,256,kernel_size=3, init_type=init_type, rho_init=rho_init)
-        self.conv1_bn = nn.BatchNorm2d(256)
+        self.conv1 = BayesianConv2D(ncha,128,kernel_size=3, init_type=init_type, rho_init=rho_init)
         s = compute_conv_output_size(size,3)
-        self.conv2 = BayesianConv2D(256,256,kernel_size=3, init_type=init_type, rho_init=rho_init)
-        self.conv2_bn = nn.BatchNorm2d(256)
+        self.conv2 = BayesianConv2D(128,128,kernel_size=3, init_type=init_type, rho_init=rho_init)
         s = compute_conv_output_size(size,3)
         s = s//2
-        self.conv3 = BayesianConv2D(256,256,kernel_size=3, init_type=init_type, rho_init=rho_init)
-        self.conv3_bn = nn.BatchNorm2d(256)
+        self.conv3 = BayesianConv2D(128,128,kernel_size=3, init_type=init_type, rho_init=rho_init)
         s = compute_conv_output_size(s,3)
-        self.conv4 = BayesianConv2D(256,128,kernel_size=3, init_type=init_type, rho_init=rho_init)
-        self.conv4_bn = nn.BatchNorm2d(128)
+        self.conv4 = BayesianConv2D(128,128,kernel_size=3, init_type=init_type, rho_init=rho_init)
         s = compute_conv_output_size(s,3)
         s = s//2
-        self.conv5 = BayesianConv2D(128,128,kernel_size=3, init_type=init_type, rho_init=rho_init)
-        self.conv5_bn = nn.BatchNorm2d(128)
-        s = compute_conv_output_size(s,3)
-        self.conv6 = BayesianConv2D(128,128,kernel_size=3, init_type=init_type, rho_init=rho_init)
-        self.conv6_bn = nn.BatchNorm2d(128)
-        s = compute_conv_output_size(s,3)
-        
-        self.AvgPool = torch.nn.AvgPool2d(s)
+        self.fc1 = BayesianLinear(s*s*128,256, init_type=init_type, rho_init=rho_init)
+        self.drop1 = nn.Dropout(0.25)
+        self.drop2 = nn.Dropout(0.5)
         self.MaxPool = torch.nn.MaxPool2d(2)
         
         self.last=torch.nn.ModuleList()
         
         for t,n in self.taskcla:
-            self.last.append(torch.nn.Linear(128,n))
+            self.last.append(torch.nn.Linear(256,n))
         self.relu = torch.nn.ReLU()
 
     def forward(self, x, sample=False):
-        h=self.relu(self.conv1_bn(self.conv1(x,sample)))
-        h=self.relu(self.conv2_bn(self.conv2(h,sample)))
-        h=self.MaxPool(h)
-        h=self.relu(self.conv3_bn(self.conv3(h,sample)))
-        h=self.relu(self.conv4_bn(self.conv4(h,sample)))
-        h=self.MaxPool(h)
-        h=self.relu(self.conv5_bn(self.conv5(h,sample)))
-        h=self.relu(self.conv6_bn(self.conv6(h,sample)))
-        h=self.AvgPool(h)
-        h=h.squeeze()
+        h=self.relu(self.conv1(x,sample))
+        h=self.relu(self.conv2(h,sample))
+        h=self.drop1(self.MaxPool(h))
+        h=self.relu(self.conv3(h,sample))
+        h=self.relu(self.conv4(h,sample))
+        h=self.drop1(self.MaxPool(h))
+        h=h.view(x.shape[0],-1)
+        h = self.drop2(self.relu(self.fc1(h,sample)))
         y = []
         for t,i in self.taskcla:
             y.append(self.last[t](h))

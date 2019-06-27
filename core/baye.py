@@ -5,6 +5,7 @@ from copy import deepcopy
 import utils
 import torch.nn.functional as F
 import torch.nn as nn
+import math
 
 sys.path.append('..')
 from arguments import get_args
@@ -15,11 +16,12 @@ from core.networks import BayesianNetwork as Net
 from bayes_layer import BayesianLinear 
 from core.conv_networks import BayesianConvNetwork as ConvNet
 from bayes_layer import BayesianConv2D 
+from bayes_layer import _calculate_fan_in_and_fan_out
 
 class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
 
-    def __init__(self, model, model_old, nepochs=100, sbatch=256, lr=0.001, lr_min=2e-6, lr_factor=3, lr_patience=5, clipgrad=100, args=None, log_name=None):
+    def __init__(self, model, model_old, nepochs=100, sbatch=256, lr=0.001, lr_min=2e-6, lr_factor=3, lr_patience=5, clipgrad=100, args=None, log_name=None, split=False):
    
         self.model = model
         self.model_old = model_old
@@ -37,11 +39,9 @@ class Appr(object):
         self.args = args
         self.iteration = 0
         self.epoch = 0
-        self.saved_point = []
         self.saved = 0
-        self.split = False
-        if args.experiment == 'split_mnist' or args.experiment == 'split_notmnist' or args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100':
-            self.split = True
+        
+        self.split = split
         
         self.optimizer = self._get_optimizer()
         self.beta = args.beta
@@ -62,7 +62,6 @@ class Appr(object):
         lr = self.lr
         patience = self.lr_patience
         self.optimizer = self._get_optimizer(lr)
-        self.nb_classes = taskcla[t][1]
         
         # Loop epochs
         for e in range(self.nepochs):
@@ -220,6 +219,8 @@ class Appr(object):
         L1_mu_weight_reg_sum = 0
         L1_mu_bias_reg_sum = 0
         
+        out_features_max = 512
+        
         if args.conv_net:
             prev_rho = nn.Parameter(torch.Tensor(3,1,1,1).uniform_(1,1))
             prev_weight_sigma = torch.log1p(torch.exp(prev_rho))
@@ -231,7 +232,6 @@ class Appr(object):
         for (_, saver_layer), (_, trainer_layer) in zip(saver_net.named_children(), trainer_net.named_children()):
             if isinstance(trainer_layer, BayesianLinear)==False and isinstance(trainer_layer, BayesianConv2D)==False:
                 continue
-            
             # calculate mu regularization
             trainer_weight_mu = trainer_layer.weight_mu
             saver_weight_mu = saver_layer.weight_mu
@@ -268,7 +268,11 @@ class Appr(object):
             L1_mu_weight_reg = (torch.div(saver_weight_mu**2,L1_sigma**2)*(trainer_weight_mu - saver_weight_mu)).norm(1)
             L1_mu_bias_reg = (torch.div(saver_bias_mu**2,saver_bias_sigma**2)*(trainer_bias_mu - saver_bias_mu)).norm(1)
             
-            std_init = np.log(1+np.exp(self.args.rho))
+            fan_in, fan_out = _calculate_fan_in_and_fan_out(trainer_weight_mu)
+            gain = math.sqrt(2.0)
+            std_init = gain / math.sqrt(fan_in)
+            
+#             std_init = np.log(1+np.exp(self.args.rho))
             
         
             mu_weight_reg = mu_weight_reg * (std_init ** 2)
@@ -279,36 +283,43 @@ class Appr(object):
             weight_sigma = (trainer_weight_sigma**2 / saver_weight_sigma**2)
             bias_sigma = (trainer_bias_sigma**2 / saver_bias_sigma**2)
             
-#             normal_weight_sigma = trainer_weight_sigma**2
-#             normal_bias_sigma = trainer_bias_sigma**2
-            std_max = 1
-            if args.init_type == '20':
-                std_max = std_init * 20
-            elif args.init_type == 'in_features':
-                std_max = std_init * np.sqrt(in_features)
-            elif args.init_type == 'out_features':
-                std_max = std_init * np.sqrt(out_features)
+            normal_weight_sigma = trainer_weight_sigma**2
+            normal_bias_sigma = trainer_bias_sigma**2
             
-            normal_weight_sigma = trainer_weight_sigma**2 / (std_max) ** 2
-            normal_bias_sigma = trainer_bias_sigma**2 / (std_max) ** 2
+            if args.date == 'RESULT_no_normal':
+                sigma_weight_reg_sum += (weight_sigma - torch.log(weight_sigma)).sum()
+#                 sigma_weight_reg_sum += (normal_weight_sigma - torch.log(normal_weight_sigma)).sum()
+                sigma_bias_reg_sum += (bias_sigma - torch.log(bias_sigma)).sum()
+#                 sigma_bias_reg_sum += (normal_bias_sigma - torch.log(normal_bias_sigma)).sum()
+            else:
+                sigma_weight_reg_sum += (weight_sigma - torch.log(weight_sigma)).sum()
+                sigma_weight_reg_sum += (normal_weight_sigma - torch.log(normal_weight_sigma)).sum()
+                sigma_bias_reg_sum += (bias_sigma - torch.log(bias_sigma)).sum()
+                sigma_bias_reg_sum += (normal_bias_sigma - torch.log(normal_bias_sigma)).sum()
 
-            sigma_weight_reg_sum += (weight_sigma - torch.log(weight_sigma)).sum()
-            sigma_weight_reg_sum += (normal_weight_sigma - torch.log(normal_weight_sigma)).sum()
-            sigma_bias_reg_sum += (bias_sigma - torch.log(bias_sigma)).sum()
-            sigma_bias_reg_sum += (normal_bias_sigma - torch.log(normal_bias_sigma)).sum()
+                
             
             mu_weight_reg_sum += mu_weight_reg
             mu_bias_reg_sum += mu_bias_reg
             L1_mu_weight_reg_sum += L1_mu_weight_reg
             L1_mu_bias_reg_sum += L1_mu_bias_reg
         
-        # elbo loss
-        loss = loss / mini_batch_size
-        # L2 loss
-        loss = loss + self.saved * (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
-        # L1 loss
-        loss = loss + self.saved * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
-        # sigma regularization
-        loss = loss + self.beta * (sigma_weight_reg_sum + sigma_bias_reg_sum) / (2 * mini_batch_size)
+        if args.date == 'RESULT_no_L1':
+            # elbo loss
+            loss = loss / mini_batch_size
+            # L2 loss
+            loss = loss + (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
+            # L1 loss
+#             loss = loss + self.saved * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
+            # sigma regularization
+            loss = loss + self.beta * (sigma_weight_reg_sum + sigma_bias_reg_sum) / (2 * mini_batch_size)
+        else:
+            # elbo loss
+            loss = loss / mini_batch_size
+            # L2 loss
+            loss = loss + (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
+            # L1 loss
+            loss = loss + self.saved * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
+            # sigma regularization
+            loss = loss + self.beta * (sigma_weight_reg_sum + sigma_bias_reg_sum) / (2 * mini_batch_size)
         return loss
-

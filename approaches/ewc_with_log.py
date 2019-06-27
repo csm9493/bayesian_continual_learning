@@ -16,9 +16,9 @@ else:
 class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
 
-    def __init__(self,model,nepochs=50,sbatch=256,lr=0.05,lr_min=1e-4,lr_factor=3,lr_patience=5,clipgrad=100,args=None, log_name=None):
+    def __init__(self,model,nepochs=100,sbatch=256,lr=0.001,lr_min=2e-6,lr_factor=3,lr_patience=5,clipgrad=100,args=None, log_name=None, split=False):
         self.model=model
-        self.model_old=None
+        self.model_old=model
         self.fisher=None
 
         file_name = log_name
@@ -31,9 +31,7 @@ class Appr(object):
         self.lr_factor = lr_factor
         self.lr_patience = lr_patience
         self.clipgrad = clipgrad
-        self.split = False
-        if args.experiment == 'split_mnist' or args.experiment == 'split_notmnist' or args.experiment == 'split_cifar100':
-            self.split = True
+        self.split = split
 
         self.ce=torch.nn.CrossEntropyLoss()
         self.optimizer=self._get_optimizer()
@@ -104,12 +102,7 @@ class Appr(object):
         self.logger.save()
         
         # Update old
-        if args.conv_net:
-            self.model_old = Net(input_size, taskcla).cuda()
-        else:
-            self.model_old = Net(input_size, taskcla, unitN = args.unitN).cuda()
-        self.model_old.load_state_dict(self.model.state_dict())
-        self.model_old.eval()
+        self.model_old = deepcopy(self.model)
         utils.freeze_model(self.model_old) # Freeze the weights
 
         # Fisher ops

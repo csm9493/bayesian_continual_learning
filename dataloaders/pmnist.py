@@ -11,7 +11,6 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 10):
     data = {}
     taskcla = []
     size = [1, 28, 28]
-    tasknum = 50
     # Pre-load
     # MNIST
     mean = torch.Tensor([0.1307])

@@ -3,7 +3,27 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math
 from torch.nn.modules.utils import _single, _pair, _triple
+
+def _calculate_fan_in_and_fan_out(tensor):
+    dimensions = tensor.dim()
+    if dimensions < 2:
+        raise ValueError("Fan in and fan out can not be computed for tensor with fewer than 2 dimensions")
+
+    if dimensions == 2:  # Linear
+        fan_in = tensor.size(1)
+        fan_out = tensor.size(0)
+    else:
+        num_input_fmaps = tensor.size(1)
+        num_output_fmaps = tensor.size(0)
+        receptive_field_size = 1
+        if tensor.dim() > 2:
+            receptive_field_size = tensor[0][0].numel()
+        fan_in = num_input_fmaps * receptive_field_size
+        fan_out = num_output_fmaps * receptive_field_size
+
+    return fan_in, fan_out
 
 class Gaussian(object):
     def __init__(self, mu, rho):
@@ -30,6 +50,11 @@ class BayesianLinear(nn.Module):
         self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features))
         nn.init.kaiming_uniform_(self.weight_mu)
         self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(-0.2,0.2))
+        
+        fan_in, fan_out = _calculate_fan_in_and_fan_out(self.weight_mu)
+        gain = math.sqrt(2.0)
+        std = gain / math.sqrt(fan_in)
+        rho_init = np.log(np.exp(std)-1)
         
         self.weight_rho = nn.Parameter(torch.Tensor(out_features,1).uniform_(rho_init,rho_init))
         self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(rho_init,rho_init))
@@ -76,15 +101,7 @@ class _BayesianConvNd(nn.Module):
         self.bias_rho = nn.Parameter(torch.Tensor(out_channels).uniform_(rho_init,rho_init))
         
         if init_type != 'random':
-            max_rho = 0.541
-            if init_type == '20':
-                max_rho = np.log((1+np.exp(rho_init))**20-1)
-            elif init_type == 'in_features':
-                max_rho = np.log((1+np.exp(rho_init))**np.sqrt(in_channels)-1)
-            elif init_type == 'out_features':
-                max_rho = np.log((1+np.exp(rho_init))**np.sqrt(out_channels)-1)
-            
-            nn.init.uniform_(self.weight_rho, max_rho, max_rho)
+            nn.init.uniform_(self.weight_rho, 0.541, 0.541)
             
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
         self.bias = Gaussian(self.bias_mu, self.bias_rho)
