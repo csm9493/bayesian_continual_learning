@@ -210,10 +210,83 @@ class Appr(object):
         return self.ce(output, targets) + self.lamb * loss_reg
 # custom regularization
 
+#     def custom_regularization(self,saver_net, trainer_net, mini_batch_size, loss=None):
+        
+#         sigma_weight_reg_sum = 0
+#         sigma_bias_reg_sum = 0
+#         mu_weight_reg_sum = 0
+#         mu_bias_reg_sum = 0
+#         L1_mu_weight_reg_sum = 0
+#         L1_mu_bias_reg_sum = 0
+        
+#         out_features_max = 512
+        
+#         for (_, saver_layer), (_, trainer_layer) in zip(saver_net.named_children(), trainer_net.named_children()):
+#             if isinstance(trainer_layer, BayesianLinear)==False and isinstance(trainer_layer, BayesianConv2D)==False:
+#                 continue
+#             # calculate mu regularization
+#             trainer_weight_mu = trainer_layer.weight_mu
+#             saver_weight_mu = saver_layer.weight_mu
+#             trainer_bias_mu = trainer_layer.bias_mu
+#             saver_bias_mu = saver_layer.bias_mu
+            
+#             fan_in, fan_out = _calculate_fan_in_and_fan_out(trainer_weight_mu)
+            
+#             if isinstance(trainer_layer, BayesianLinear):
+#                 std_init = 1 / math.sqrt(fan_in)
+#             if isinstance(trainer_layer, BayesianConv2D):
+#                 std_init = 1 / math.sqrt(4*fan_out)
+
+#             trainer_weight_sigma = torch.log1p(torch.exp(trainer_layer.weight_rho))
+#             saver_weight_sigma = torch.log1p(torch.exp(saver_layer.weight_rho))
+#             trainer_bias_sigma = torch.log1p(torch.exp(trainer_layer.bias_rho))
+#             saver_bias_sigma = torch.log1p(torch.exp(saver_layer.bias_rho))
+            
+#             mu_weight_reg = torch.div(trainer_weight_mu - saver_weight_mu, saver_weight_sigma).norm(2)**2
+#             mu_bias_reg = torch.div(trainer_bias_mu - saver_bias_mu, saver_bias_sigma).norm(2)**2
+            
+#             L1_mu_weight_reg = (torch.div(saver_weight_mu**2,saver_weight_sigma**2)*(trainer_weight_mu - saver_weight_mu)).norm(1)
+#             L1_mu_bias_reg = (torch.div(saver_bias_mu**2,saver_bias_sigma**2)*(trainer_bias_mu - saver_bias_mu)).norm(1)
+            
+#             mu_weight_reg = mu_weight_reg ** (std_init ** 2)
+#             mu_bias_reg = mu_bias_reg ** ((std_init/10) ** 2)
+            
+            
+#             L1_mu_weight_reg = L1_mu_weight_reg * (std_init ** 2)
+#             L1_mu_bias_reg = L1_mu_bias_reg * ((std_init/10) ** 2)
+            
+#             weight_sigma = (trainer_weight_sigma**2 / saver_weight_sigma**2)
+            
+#             normal_weight_sigma = trainer_weight_sigma**2
+            
+#             sigma_weight_reg_sum = sigma_weight_reg_sum + (weight_sigma - torch.log(weight_sigma)).sum()
+#             sigma_weight_reg_sum = sigma_weight_reg_sum + (normal_weight_sigma - torch.log(normal_weight_sigma)).sum()
+            
+#             mu_weight_reg_sum = mu_weight_reg_sum + mu_weight_reg
+#             mu_bias_reg_sum = mu_bias_reg_sum + mu_bias_reg
+#             L1_mu_weight_reg_sum = L1_mu_weight_reg_sum + L1_mu_weight_reg
+#             L1_mu_bias_reg_sum = L1_mu_bias_reg_sum + L1_mu_bias_reg
+            
+#         # elbo loss
+#         loss = loss / mini_batch_size
+#         # L2 loss
+#         loss = loss + (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
+#         # L1 loss
+#         loss = loss + self.saved * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
+#         # sigma regularization
+#         loss = loss + self.beta * (sigma_weight_reg_sum) / (2 * mini_batch_size)
+            
+#         return loss
+
+
+
+
     def custom_regularization(self,saver_net, trainer_net, mini_batch_size, loss=None):
         
         sigma_weight_reg_sum = 0
         sigma_bias_reg_sum = 0
+        sigma_weight_normal_reg_sum = 0
+        sigma_bias_normal_reg_sum = 0
         mu_weight_reg_sum = 0
         mu_bias_reg_sum = 0
         L1_mu_weight_reg_sum = 0
@@ -237,12 +310,16 @@ class Appr(object):
             saver_bias = saver_layer.bias
             
             fan_in, fan_out = _calculate_fan_in_and_fan_out(trainer_weight_mu)
-            std_init = 1 / math.sqrt(fan_in)
             
             trainer_weight_sigma = torch.log1p(torch.exp(trainer_layer.weight_rho))
             saver_weight_sigma = torch.log1p(torch.exp(saver_layer.weight_rho))
             
-            saver_weight_strength = std_init / saver_weight_sigma
+            if isinstance(trainer_layer, BayesianLinear):
+                std_init = 1 / math.sqrt(fan_in)
+            if isinstance(trainer_layer, BayesianConv2D):
+                std_init = 1 / math.sqrt(4*fan_out)
+            
+            saver_weight_strength = (std_init / saver_weight_sigma)
 
             if len(saver_weight_mu.shape) == 4:
                 out_features, in_features, _, _ = saver_weight_mu.shape
@@ -281,7 +358,7 @@ class Appr(object):
             normal_weight_sigma = trainer_weight_sigma**2
             
             sigma_weight_reg_sum = sigma_weight_reg_sum + (weight_sigma - torch.log(weight_sigma)).sum()
-            sigma_weight_reg_sum = sigma_weight_reg_sum + (normal_weight_sigma - torch.log(normal_weight_sigma)).sum()
+            sigma_weight_normal_reg_sum = sigma_weight_normal_reg_sum + (normal_weight_sigma - torch.log(normal_weight_sigma)).sum()
             
             mu_weight_reg_sum = mu_weight_reg_sum + mu_weight_reg
             mu_bias_reg_sum = mu_bias_reg_sum + mu_bias_reg
@@ -295,127 +372,6 @@ class Appr(object):
         # L1 loss
         loss = loss + self.saved * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
         # sigma regularization
-        loss = loss + self.beta * (sigma_weight_reg_sum) / (2 * mini_batch_size)
+        loss = loss + self.beta * (sigma_weight_reg_sum + sigma_weight_normal_reg_sum) / (2 * mini_batch_size)
             
         return loss
-
-
-#     def custom_regularization(self,saver_net, trainer_net, mini_batch_size, loss=None):
-        
-#         sigma_weight_reg_sum = 0
-#         sigma_bias_reg_sum = 0
-#         mu_weight_reg_sum = 0
-#         mu_bias_reg_sum = 0
-#         L1_mu_weight_reg_sum = 0
-#         L1_mu_bias_reg_sum = 0
-        
-#         out_features_max = 512
-        
-#         if args.conv_net:
-#             prev_rho = nn.Parameter(torch.Tensor(3,1,1,1).uniform_(1,1))
-#             prev_weight_sigma = torch.log1p(torch.exp(prev_rho))
-
-#         else:
-#             prev_rho = nn.Parameter(torch.Tensor(28*28,1).uniform_(1,1))
-#             prev_weight_sigma = torch.log1p(torch.exp(prev_rho))
-        
-#         for (_, saver_layer), (_, trainer_layer) in zip(saver_net.named_children(), trainer_net.named_children()):
-#             if isinstance(trainer_layer, BayesianLinear)==False and isinstance(trainer_layer, BayesianConv2D)==False:
-#                 continue
-#             # calculate mu regularization
-#             trainer_weight_mu = trainer_layer.weight_mu
-#             saver_weight_mu = saver_layer.weight_mu
-# #             trainer_bias_mu = trainer_layer.bias_mu
-# #             saver_bias_mu = saver_layer.bias_mu
-#             trainer_bias = trainer_layer.bias
-#             saver_bias = saver_layer.bias
-
-#             trainer_weight_sigma = torch.log1p(torch.exp(trainer_layer.weight_rho))
-#             saver_weight_sigma = torch.log1p(torch.exp(saver_layer.weight_rho))
-# #             trainer_bias_sigma = torch.log1p(torch.exp(trainer_layer.bias_rho))
-# #             saver_bias_sigma = torch.log1p(torch.exp(saver_layer.bias_rho))
-
-#             if len(saver_weight_mu.shape) == 4:
-#                 out_features, in_features, _, _ = saver_weight_mu.shape
-#                 curr_sigma = saver_weight_sigma.expand(out_features,in_features,1,1)
-#                 prev_sigma = prev_weight_sigma.permute(1,0,2,3).expand(out_features,in_features,1,1)
-            
-#             else:
-#                 out_features, in_features = saver_weight_mu.shape
-#                 curr_sigma = saver_weight_sigma.expand(out_features,in_features)
-#                 if len(prev_weight_sigma.shape) == 4:
-#                     feature_size = in_features // (prev_weight_sigma.shape[0])
-#                     prev_weight_sigma = prev_weight_sigma.reshape(prev_weight_sigma.shape[0],-1)
-#                     prev_weight_sigma = prev_weight_sigma.expand(prev_weight_sigma.shape[0], feature_size)
-#                     prev_weight_sigma = prev_weight_sigma.reshape(-1,1)
-#                 prev_sigma = prev_weight_sigma.permute(1,0).expand(out_features,in_features)
-            
-#             L1_sigma = saver_weight_sigma
-#             L2_sigma = torch.min(curr_sigma, prev_sigma)
-#             bias_sigma = torch.squeeze(saver_weight_sigma)
-#             prev_weight_sigma = saver_weight_sigma
-            
-#             mu_weight_reg = (torch.div(trainer_weight_mu-saver_weight_mu, L2_sigma)).norm(2)**2
-# #             mu_bias_reg = (torch.div(trainer_bias_mu-saver_bias_mu, saver_bias_sigma)).norm(2)**2
-#             mu_bias_reg = (torch.div(trainer_bias-saver_bias, bias_sigma)).norm(2)**2
-   
-#             L1_mu_weight_reg = (torch.div(saver_weight_mu**2,L1_sigma**2)*(trainer_weight_mu - saver_weight_mu)).norm(1)
-# #             L1_mu_bias_reg = (torch.div(saver_bias_mu**2,saver_bias_sigma**2)*(trainer_bias_mu - saver_bias_mu)).norm(1)
-#             L1_mu_bias_reg = (torch.div(saver_bias**2,bias_sigma**2)*(trainer_bias - saver_bias)).norm(1)
-            
-#             fan_in, fan_out = _calculate_fan_in_and_fan_out(trainer_weight_mu)
-#             gain = math.sqrt(2.0)
-#             gain = 1 # Var[w] + sigma^2 = 2/fan_in
-#             std_init = gain / math.sqrt(fan_in)
-            
-# #             std_init = np.log(1+np.exp(self.args.rho))
-        
-#             mu_weight_reg = mu_weight_reg * (std_init ** 2)
-#             mu_bias_reg = mu_bias_reg * (std_init ** 2)
-#             L1_mu_weight_reg = L1_mu_weight_reg * (std_init ** 2)
-#             L1_mu_bias_reg = L1_mu_bias_reg * (std_init ** 2)
-            
-#             weight_sigma = (trainer_weight_sigma**2 / saver_weight_sigma**2)
-# #             bias_sigma = (trainer_bias_sigma**2 / saver_bias_sigma**2)
-            
-#             normal_weight_sigma = trainer_weight_sigma**2
-# #             normal_bias_sigma = trainer_bias_sigma**2
-            
-#             if args.date == 'RESULT_no_normal':
-#                 sigma_weight_reg_sum += (weight_sigma - torch.log(weight_sigma)).sum()
-# #                 sigma_weight_reg_sum += (normal_weight_sigma - torch.log(normal_weight_sigma)).sum()
-#                 sigma_bias_reg_sum += (bias_sigma - torch.log(bias_sigma)).sum()
-# #                 sigma_bias_reg_sum += (normal_bias_sigma - torch.log(normal_bias_sigma)).sum()
-#             else:
-#                 sigma_weight_reg_sum += (weight_sigma - torch.log(weight_sigma)).sum()
-#                 sigma_weight_reg_sum += (normal_weight_sigma - torch.log(normal_weight_sigma)).sum()
-# #                 sigma_bias_reg_sum += (bias_sigma - torch.log(bias_sigma)).sum()
-# #                 sigma_bias_reg_sum += (normal_bias_sigma - torch.log(normal_bias_sigma)).sum()
-
-                
-            
-#             mu_weight_reg_sum += mu_weight_reg
-#             mu_bias_reg_sum += mu_bias_reg
-#             L1_mu_weight_reg_sum += L1_mu_weight_reg
-#             L1_mu_bias_reg_sum += L1_mu_bias_reg
-        
-#         if args.date == 'RESULT_no_L1':
-#             # elbo loss
-#             loss = loss / mini_batch_size
-#             # L2 loss
-#             loss = loss + (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
-#             # L1 loss
-# #             loss = loss + self.saved * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
-#             # sigma regularization
-#             loss = loss + self.beta * (sigma_weight_reg_sum + sigma_bias_reg_sum) / (2 * mini_batch_size)
-#         else:
-#             # elbo loss
-#             loss = loss / mini_batch_size
-#             # L2 loss
-#             loss = loss + (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
-#             # L1 loss
-#             loss = loss + self.saved * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
-#             # sigma regularization
-# #             loss = loss + self.beta * (sigma_weight_reg_sum + sigma_bias_reg_sum) / (2 * mini_batch_size)
-#             loss = loss + self.beta * (sigma_weight_reg_sum) / (2 * mini_batch_size)
-#         return loss

@@ -50,22 +50,28 @@ class BayesianLinear(nn.Module):
         self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features))
         
         fan_in, fan_out = _calculate_fan_in_and_fan_out(self.weight_mu)
-#         gain = math.sqrt(2.0)
         gain = 1 # Var[w] + sigma^2 = 2/fan_in
-        std = gain / math.sqrt(fan_in)
-        bound = math.sqrt(3.0) * std
-        rho_init = np.log(np.exp(std)-1)
+        
+        total_var = 2 / fan_out
+        noise_var = 1 / fan_out
+        mu_var = total_var - noise_var
+        
+        noise_std, mu_std = math.sqrt(noise_var), math.sqrt(mu_var)
+        bound = math.sqrt(3.0) * mu_std
+        rho_init = np.log(np.exp(noise_std)-1)
+        bias_rho_init = np.log(np.exp(noise_std/10)-1)
         
 #         nn.init.normal_(self.weight_mu, mean = 0, std = std)
         nn.init.uniform_(self.weight_mu, -bound, bound)
-#         self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(-0.2,0.2))
+#         self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(0,0))
         self.bias = nn.Parameter(torch.Tensor(out_features).uniform_(0,0))
         
         self.weight_rho = nn.Parameter(torch.Tensor(out_features,1).uniform_(rho_init,rho_init))
-#         self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(rho_init,rho_init))
+#         self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(bias_rho_init,bias_rho_init))
         
         if init_type != 'random':
             nn.init.uniform_(self.weight_rho,0.541,0.541)
+#             nn.init.uniform_(self.bias_rho, 0.541, 0.541)
 
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
 #         self.bias = Gaussian(self.bias_mu, self.bias_rho)
@@ -103,23 +109,30 @@ class _BayesianConvNd(nn.Module):
         self.weight_mu = nn.Parameter(torch.Tensor(out_channels, in_channels // groups, *kernel_size))
         
         fan_in, fan_out = _calculate_fan_in_and_fan_out(self.weight_mu)
-#         gain = math.sqrt(2.0)
         gain = 1 # Var[w] + sigma^2 = 2/fan_in
-        std = gain / math.sqrt(fan_in)
-        bound = math.sqrt(3.0) * std
-        rho_init = np.log(np.exp(std)-1)
         
-#         nn.init.normal_(self.weight_mu, mean = 0, std = std)
+        total_var = 2 / fan_out
+        noise_var = 1 / (4*fan_out)
+        mu_var = total_var - noise_var
+        
+        noise_std, mu_std = math.sqrt(noise_var), math.sqrt(mu_var)
+        bound = math.sqrt(3.0) * mu_std
+        rho_init = np.log(np.exp(noise_std)-1)
+        bias_rho_init = np.log(np.exp(noise_std/10)-1)
+        
         nn.init.uniform_(self.weight_mu, -bound, bound)
     
-#         self.bias_mu = nn.Parameter(torch.Tensor(out_channels).uniform_(-0.2,0.2))
         self.bias = nn.Parameter(torch.Tensor(out_channels).uniform_(0,0))
+#         self.bias_mu = nn.Parameter(torch.Tensor(out_channels).uniform_(0,0))
         
         self.weight_rho = nn.Parameter(torch.Tensor(out_channels, 1, 1, 1).uniform_(rho_init,rho_init))
-#         self.bias_rho = nn.Parameter(torch.Tensor(out_channels).uniform_(rho_init,rho_init))
+#         self.weight_rho = nn.Parameter(torch.Tensor(out_channels, in_channels, 1, 1).uniform_(rho_init,rho_init))
+#         self.bias_rho = nn.Parameter(torch.Tensor(out_channels).uniform_(bias_rho_init,bias_rho_init))
         
         if init_type != 'random':
             nn.init.uniform_(self.weight_rho, 0.541, 0.541)
+#             nn.init.uniform_(self.bias_rho, 0.541, 0.541)
+            
             
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
 #         self.bias = Gaussian(self.bias_mu, self.bias_rho)
