@@ -20,10 +20,9 @@ elif args.approach == 'ewc_with_log':
     log_name = '{}_{}_{}_{}_lamb_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, args.approach,args.seed,
                                                                        args.lamb, args.unitN, args.batch_size, args.nepochs)
 elif args.approach == 'baye':
-    log_name = '{}_{}_{}_{}_beta_{:.7f}_unitN_{}_batch_{}_epoch_{}_{:.7f}'.format(args.date, args.experiment, args.approach, 
-                                                                                  args.seed,args.beta, args.unitN,
-                                                                                  args.batch_size, args.nepochs, args_std)
-        
+    log_name = '{}_{}_{}_{}_beta_{:.7f}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, 
+                                                                           args.approach,args.seed,args.beta, 
+                                                                           args.unitN,args.batch_size, args.nepochs)
 elif args.approach == 'hat':
     log_name = '{}_{}_{}_{}_alpha_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, args.approach, args.seed,
                                                                        args.alpha, args.unitN, args.batch_size, args.nepochs)
@@ -160,8 +159,8 @@ if args.approach == 'baye' and args.conv_net == False:
     appr = approach.Appr(net, net_old, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
 
 elif args.approach == 'baye' and args.conv_net == True:
-    net = network.BayesianConvNetwork(inputsize, taskcla, init_type='random',rho_init=args.rho).cuda()
-    net_old = network.BayesianConvNetwork(inputsize, taskcla, rho_init=args.rho).cuda()
+    net = network.BayesianConvNetwork(inputsize, taskcla, init_type='random').cuda()
+    net_old = network.BayesianConvNetwork(inputsize, taskcla, init_type='zero').cuda()
     appr = approach.Appr(net, net_old, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
     
 else:

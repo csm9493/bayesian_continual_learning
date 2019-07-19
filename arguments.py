@@ -21,7 +21,9 @@ def get_args():
     parser.add_argument('--batch-size', default=256, type=int, required=False, help='(default=%(default)d)')
     parser.add_argument('--lr', default=0.001, type=float, required=False, help='(default=%(default)f)')
     parser.add_argument('--lamb', default='1', type=float, help='(default=%(default)f)')
-    parser.add_argument('--c', default='0.1', type=float, help='(default=%(default)f)')
+    parser.add_argument('--c', default='0.9', type=float, help='(default=%(default)f)')
+    parser.add_argument('--CNN_ratio', default='0.125', type=float, help='(default=%(default)f)')
+    parser.add_argument('--FC_ratio', default='0.5', type=float, help='(default=%(default)f)')
     parser.add_argument('--beta', default='0.03', type=float, help='(default=%(default)f)')
     parser.add_argument('--alpha', default='0.75', type=float, help='(default=%(default)f)')
     parser.add_argument('--date', type=str, default='', help='(default=%(default)s)')
@@ -29,7 +31,6 @@ def get_args():
     parser.add_argument('--conv-net', action='store_true', default=False, help='Using convolution network')
     parser.add_argument('--parameter',type=str,default='',help='(default=%(default)s)')
     parser.add_argument('--sample', type = int, default=1, help='Using sigma max to support coefficient')
-#     parser.add_argument('--rho', type = float, default=-2.970, help='initial rho')
     parser.add_argument('--rho', type = float, default=-2.783, help='initial rho')
     args=parser.parse_args()
     return args

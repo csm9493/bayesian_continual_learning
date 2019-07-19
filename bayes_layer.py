@@ -41,7 +41,7 @@ class Gaussian(object):
         return self.mu + self.sigma * epsilon   
 
 class BayesianLinear(nn.Module):
-    def __init__(self, in_features, out_features, init_type = 'random', rho_init = -2.783):
+    def __init__(self, in_features, out_features, init_type = 'random'):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -49,48 +49,41 @@ class BayesianLinear(nn.Module):
         
         self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features))
         
-        fan_in, fan_out = _calculate_fan_in_and_fan_out(self.weight_mu)
+        fan_in, _ = _calculate_fan_in_and_fan_out(self.weight_mu)
         gain = 1 # Var[w] + sigma^2 = 2/fan_in
         
-        total_var = 2 / fan_out
-        noise_var = 1 / fan_out
+        total_var = 2 / fan_in
+#         noise_var = total_var * ratio
+        noise_var = 1 / fan_in
         mu_var = total_var - noise_var
         
         noise_std, mu_std = math.sqrt(noise_var), math.sqrt(mu_var)
         bound = math.sqrt(3.0) * mu_std
         rho_init = np.log(np.exp(noise_std)-1)
-        bias_rho_init = np.log(np.exp(noise_std/10)-1)
         
-#         nn.init.normal_(self.weight_mu, mean = 0, std = std)
         nn.init.uniform_(self.weight_mu, -bound, bound)
-#         self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(0,0))
         self.bias = nn.Parameter(torch.Tensor(out_features).uniform_(0,0))
         
         self.weight_rho = nn.Parameter(torch.Tensor(out_features,1).uniform_(rho_init,rho_init))
-#         self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(bias_rho_init,bias_rho_init))
         
         if init_type != 'random':
             nn.init.uniform_(self.weight_rho,0.541,0.541)
-#             nn.init.uniform_(self.bias_rho, 0.541, 0.541)
 
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
-#         self.bias = Gaussian(self.bias_mu, self.bias_rho)
 
     def forward(self, input, sample=False):
         if sample:
             weight = self.weight.sample()
-#             bias = self.bias.sample()
             bias = self.bias
         else:
             weight = self.weight.mu
-#             bias = self.bias.mu
             bias = self.bias
 
         return F.linear(input, weight, bias)
 
 
 class _BayesianConvNd(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride,padding, dilation, transposed, output_padding, groups, bias, init_type, rho_init):
+    def __init__(self, in_channels, out_channels, kernel_size, stride,padding, dilation, transposed, output_padding, groups, bias, init_type):
         super(_BayesianConvNd, self).__init__()
         if in_channels % groups != 0:
             raise ValueError('in_channels must be divisible by groups')
@@ -108,52 +101,43 @@ class _BayesianConvNd(nn.Module):
         
         self.weight_mu = nn.Parameter(torch.Tensor(out_channels, in_channels // groups, *kernel_size))
         
-        fan_in, fan_out = _calculate_fan_in_and_fan_out(self.weight_mu)
-        gain = 1 # Var[w] + sigma^2 = 2/fan_in
-        
+        _, fan_out = _calculate_fan_in_and_fan_out(self.weight_mu)
         total_var = 2 / fan_out
+#         noise_var = total_var * ratio
         noise_var = 1 / (4*fan_out)
         mu_var = total_var - noise_var
         
         noise_std, mu_std = math.sqrt(noise_var), math.sqrt(mu_var)
         bound = math.sqrt(3.0) * mu_std
         rho_init = np.log(np.exp(noise_std)-1)
-        bias_rho_init = np.log(np.exp(noise_std/10)-1)
         
         nn.init.uniform_(self.weight_mu, -bound, bound)
     
         self.bias = nn.Parameter(torch.Tensor(out_channels).uniform_(0,0))
-#         self.bias_mu = nn.Parameter(torch.Tensor(out_channels).uniform_(0,0))
         
         self.weight_rho = nn.Parameter(torch.Tensor(out_channels, 1, 1, 1).uniform_(rho_init,rho_init))
-#         self.weight_rho = nn.Parameter(torch.Tensor(out_channels, in_channels, 1, 1).uniform_(rho_init,rho_init))
-#         self.bias_rho = nn.Parameter(torch.Tensor(out_channels).uniform_(bias_rho_init,bias_rho_init))
         
         if init_type != 'random':
             nn.init.uniform_(self.weight_rho, 0.541, 0.541)
-#             nn.init.uniform_(self.bias_rho, 0.541, 0.541)
             
             
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
-#         self.bias = Gaussian(self.bias_mu, self.bias_rho)
         
         
 class BayesianConv2D(_BayesianConvNd):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, init_type = 'random', rho_init = -2.783):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, init_type = 'random'):
         kernel_size = _pair(kernel_size)
         stride = _pair(stride)
         padding = _pair(padding)
         dilation = _pair(dilation)
-        super(BayesianConv2D, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, False, _pair(0), groups, bias, init_type, rho_init)
+        super(BayesianConv2D, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, False, _pair(0), groups, bias, init_type)
     
     def forward(self, input, sample = False):
         if sample:
             weight = self.weight.sample()
-#             bias = self.bias.sample()
             bias = self.bias
         else:
             weight = self.weight.mu
-#             bias = self.bias.mu
             bias = self.bias
         
         return F.conv2d(input, weight, bias, self.stride, self.padding, self.dilation, self.groups)

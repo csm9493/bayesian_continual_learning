@@ -21,7 +21,7 @@ from bayes_layer import _calculate_fan_in_and_fan_out
 class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
 
-    def __init__(self, model, model_old, nepochs=100, sbatch=256, lr=0.001, lr_min=2e-6, lr_factor=1, lr_patience=5, clipgrad=100, args=None, log_name=None, split=False):
+    def __init__(self, model, model_old, nepochs=100, sbatch=256, lr=0.001, lr_min=2e-6, lr_factor=3, lr_patience=5, clipgrad=100, args=None, log_name=None, split=False):
    
         self.model = model
         self.model_old = model_old
@@ -109,6 +109,7 @@ class Appr(object):
                     if lr < self.lr_min:
                         print()
                         if args.conv_net:
+#                             pass
                             break
                     patience = self.lr_patience
                     self.optimizer = self._get_optimizer(lr)
@@ -208,78 +209,8 @@ class Appr(object):
                 loss_reg += torch.sum(self.fisher[name] * (param_old - param).pow(2)) / 2
 
         return self.ce(output, targets) + self.lamb * loss_reg
+
 # custom regularization
-
-#     def custom_regularization(self,saver_net, trainer_net, mini_batch_size, loss=None):
-        
-#         sigma_weight_reg_sum = 0
-#         sigma_bias_reg_sum = 0
-#         mu_weight_reg_sum = 0
-#         mu_bias_reg_sum = 0
-#         L1_mu_weight_reg_sum = 0
-#         L1_mu_bias_reg_sum = 0
-        
-#         out_features_max = 512
-        
-#         for (_, saver_layer), (_, trainer_layer) in zip(saver_net.named_children(), trainer_net.named_children()):
-#             if isinstance(trainer_layer, BayesianLinear)==False and isinstance(trainer_layer, BayesianConv2D)==False:
-#                 continue
-#             # calculate mu regularization
-#             trainer_weight_mu = trainer_layer.weight_mu
-#             saver_weight_mu = saver_layer.weight_mu
-#             trainer_bias_mu = trainer_layer.bias_mu
-#             saver_bias_mu = saver_layer.bias_mu
-            
-#             fan_in, fan_out = _calculate_fan_in_and_fan_out(trainer_weight_mu)
-            
-#             if isinstance(trainer_layer, BayesianLinear):
-#                 std_init = 1 / math.sqrt(fan_in)
-#             if isinstance(trainer_layer, BayesianConv2D):
-#                 std_init = 1 / math.sqrt(4*fan_out)
-
-#             trainer_weight_sigma = torch.log1p(torch.exp(trainer_layer.weight_rho))
-#             saver_weight_sigma = torch.log1p(torch.exp(saver_layer.weight_rho))
-#             trainer_bias_sigma = torch.log1p(torch.exp(trainer_layer.bias_rho))
-#             saver_bias_sigma = torch.log1p(torch.exp(saver_layer.bias_rho))
-            
-#             mu_weight_reg = torch.div(trainer_weight_mu - saver_weight_mu, saver_weight_sigma).norm(2)**2
-#             mu_bias_reg = torch.div(trainer_bias_mu - saver_bias_mu, saver_bias_sigma).norm(2)**2
-            
-#             L1_mu_weight_reg = (torch.div(saver_weight_mu**2,saver_weight_sigma**2)*(trainer_weight_mu - saver_weight_mu)).norm(1)
-#             L1_mu_bias_reg = (torch.div(saver_bias_mu**2,saver_bias_sigma**2)*(trainer_bias_mu - saver_bias_mu)).norm(1)
-            
-#             mu_weight_reg = mu_weight_reg ** (std_init ** 2)
-#             mu_bias_reg = mu_bias_reg ** ((std_init/10) ** 2)
-            
-            
-#             L1_mu_weight_reg = L1_mu_weight_reg * (std_init ** 2)
-#             L1_mu_bias_reg = L1_mu_bias_reg * ((std_init/10) ** 2)
-            
-#             weight_sigma = (trainer_weight_sigma**2 / saver_weight_sigma**2)
-            
-#             normal_weight_sigma = trainer_weight_sigma**2
-            
-#             sigma_weight_reg_sum = sigma_weight_reg_sum + (weight_sigma - torch.log(weight_sigma)).sum()
-#             sigma_weight_reg_sum = sigma_weight_reg_sum + (normal_weight_sigma - torch.log(normal_weight_sigma)).sum()
-            
-#             mu_weight_reg_sum = mu_weight_reg_sum + mu_weight_reg
-#             mu_bias_reg_sum = mu_bias_reg_sum + mu_bias_reg
-#             L1_mu_weight_reg_sum = L1_mu_weight_reg_sum + L1_mu_weight_reg
-#             L1_mu_bias_reg_sum = L1_mu_bias_reg_sum + L1_mu_bias_reg
-            
-#         # elbo loss
-#         loss = loss / mini_batch_size
-#         # L2 loss
-#         loss = loss + (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
-#         # L1 loss
-#         loss = loss + self.saved * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
-#         # sigma regularization
-#         loss = loss + self.beta * (sigma_weight_reg_sum) / (2 * mini_batch_size)
-            
-#         return loss
-
-
-
 
     def custom_regularization(self,saver_net, trainer_net, mini_batch_size, loss=None):
         
@@ -315,9 +246,11 @@ class Appr(object):
             saver_weight_sigma = torch.log1p(torch.exp(saver_layer.weight_rho))
             
             if isinstance(trainer_layer, BayesianLinear):
+#                 std_init = math.sqrt((2 / fan_in) * args.FC_ratio)
                 std_init = 1 / math.sqrt(fan_in)
             if isinstance(trainer_layer, BayesianConv2D):
-                std_init = 1 / math.sqrt(4*fan_out)
+#                 std_init = math.sqrt((2 / fan_out) * args.CNN_ratio)
+                std_init = 1 / math.sqrt(fan_out * 4)
             
             saver_weight_strength = (std_init / saver_weight_sigma)
 
