@@ -152,10 +152,10 @@ print('Inits...')
 # print (inputsize,taskcla)
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 if args.approach == 'baye' and args.conv_net == False:
-    net = network.BayesianNetwork(inputsize, taskcla, init_type='random',
-                                  rho_init=args.rho, unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
-    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero',
-                                      rho_init=args.rho, unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
+    net = network.BayesianNetwork(inputsize, taskcla, init_type='random',unitN=args.unitN, split = split, 
+                                  notMNIST=notMNIST).cuda()
+    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero',unitN=args.unitN, split = split, 
+                                      notMNIST=notMNIST).cuda()
     appr = approach.Appr(net, net_old, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
 
 elif args.approach == 'baye' and args.conv_net == True:

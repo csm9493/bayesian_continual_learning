@@ -45,7 +45,6 @@ class BayesianLinear(nn.Module):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
-        self.rho_init = rho_init
         
         self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features))
         
