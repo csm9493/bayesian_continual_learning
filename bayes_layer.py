@@ -41,7 +41,7 @@ class Gaussian(object):
         return self.mu + self.sigma * epsilon   
 
 class BayesianLinear(nn.Module):
-    def __init__(self, in_features, out_features, init_type = 'random'):
+    def __init__(self, in_features, out_features, init_type = 'random', ratio = 0.5):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -52,8 +52,8 @@ class BayesianLinear(nn.Module):
         gain = 1 # Var[w] + sigma^2 = 2/fan_in
         
         total_var = 2 / fan_in
-#         noise_var = total_var * ratio
-        noise_var = 1 / fan_in
+        noise_var = total_var * ratio
+#         noise_var = 1 / fan_in
         mu_var = total_var - noise_var
         
         noise_std, mu_std = math.sqrt(noise_var), math.sqrt(mu_var)
@@ -82,7 +82,7 @@ class BayesianLinear(nn.Module):
 
 
 class _BayesianConvNd(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride,padding, dilation, transposed, output_padding, groups, bias, init_type):
+    def __init__(self, in_channels, out_channels, kernel_size, stride,padding, dilation, transposed, output_padding, groups, bias, init_type, ratio):
         super(_BayesianConvNd, self).__init__()
         if in_channels % groups != 0:
             raise ValueError('in_channels must be divisible by groups')
@@ -102,8 +102,8 @@ class _BayesianConvNd(nn.Module):
         
         _, fan_out = _calculate_fan_in_and_fan_out(self.weight_mu)
         total_var = 2 / fan_out
-#         noise_var = total_var * ratio
-        noise_var = 1 / (4*fan_out)
+        noise_var = total_var * ratio
+#         noise_var = 1 / (4*fan_out)
         mu_var = total_var - noise_var
         
         noise_std, mu_std = math.sqrt(noise_var), math.sqrt(mu_var)
@@ -124,12 +124,12 @@ class _BayesianConvNd(nn.Module):
         
         
 class BayesianConv2D(_BayesianConvNd):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, init_type = 'random'):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, init_type = 'random', ratio = 0.125):
         kernel_size = _pair(kernel_size)
         stride = _pair(stride)
         padding = _pair(padding)
         dilation = _pair(dilation)
-        super(BayesianConv2D, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, False, _pair(0), groups, bias, init_type)
+        super(BayesianConv2D, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, False, _pair(0), groups, bias, init_type, ratio)
     
     def forward(self, input, sample = False):
         if sample:

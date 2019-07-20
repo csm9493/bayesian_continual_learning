@@ -109,8 +109,8 @@ class Appr(object):
                     if lr < self.lr_min:
                         print()
                         if args.conv_net:
-#                             pass
-                            break
+                            pass
+#                             break
                     patience = self.lr_patience
                     self.optimizer = self._get_optimizer(lr)
             print()
@@ -224,6 +224,9 @@ class Appr(object):
         L1_mu_bias_reg_sum = 0
         
         out_features_max = 512
+        alpha = 0.01
+        if self.saved:
+            alpha = 1
         
         if args.conv_net:
             prev_weight_strength = nn.Parameter(torch.Tensor(3,1,1,1).uniform_(0,0))
@@ -246,11 +249,11 @@ class Appr(object):
             saver_weight_sigma = torch.log1p(torch.exp(saver_layer.weight_rho))
             
             if isinstance(trainer_layer, BayesianLinear):
-#                 std_init = math.sqrt((2 / fan_in) * args.FC_ratio)
-                std_init = 1 / math.sqrt(fan_in)
+                std_init = math.sqrt((2 / fan_in) * args.FC_ratio)
+#                 std_init = 1 / math.sqrt(fan_in)
             if isinstance(trainer_layer, BayesianConv2D):
-#                 std_init = math.sqrt((2 / fan_out) * args.CNN_ratio)
-                std_init = 1 / math.sqrt(fan_out * 4)
+                std_init = math.sqrt((2 / fan_out) * args.CNN_ratio)
+#                 std_init = 1 / math.sqrt(fan_out * 4)
             
             saver_weight_strength = (std_init / saver_weight_sigma)
 
@@ -301,7 +304,7 @@ class Appr(object):
         # elbo loss
         loss = loss / mini_batch_size
         # L2 loss
-        loss = loss + (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
+        loss = loss + alpha * (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
         # L1 loss
         loss = loss + self.saved * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
         # sigma regularization

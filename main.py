@@ -20,9 +20,10 @@ elif args.approach == 'ewc_with_log':
     log_name = '{}_{}_{}_{}_lamb_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, args.approach,args.seed,
                                                                        args.lamb, args.unitN, args.batch_size, args.nepochs)
 elif args.approach == 'baye':
-    log_name = '{}_{}_{}_{}_beta_{:.7f}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, 
-                                                                           args.approach,args.seed,args.beta, 
-                                                                           args.unitN,args.batch_size, args.nepochs)
+    log_name = '{}_{}_{}_{}_beta_{:.7f}_FC_{:.7f}_CNN_{:.7f}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, 
+                                                                                        args.approach,args.seed,args.beta, 
+                                                                                        args.FC_ratio, args.CNN_ratio,
+                                                                                        args.unitN,args.batch_size, args.nepochs)
 elif args.approach == 'hat':
     log_name = '{}_{}_{}_{}_alpha_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, args.approach, args.seed,
                                                                        args.alpha, args.unitN, args.batch_size, args.nepochs)
@@ -154,13 +155,15 @@ torch.set_default_tensor_type('torch.cuda.FloatTensor')
 if args.approach == 'baye' and args.conv_net == False:
     net = network.BayesianNetwork(inputsize, taskcla, init_type='random',unitN=args.unitN, split = split, 
                                   notMNIST=notMNIST).cuda()
-    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero',unitN=args.unitN, split = split, 
+#     net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero',unitN=args.unitN, split = split, 
+#                                       notMNIST=notMNIST).cuda()
+    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='random',unitN=args.unitN, split = split, 
                                       notMNIST=notMNIST).cuda()
     appr = approach.Appr(net, net_old, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
 
 elif args.approach == 'baye' and args.conv_net == True:
-    net = network.BayesianConvNetwork(inputsize, taskcla, init_type='random').cuda()
-    net_old = network.BayesianConvNetwork(inputsize, taskcla, init_type='zero').cuda()
+    net = network.BayesianConvNetwork(inputsize, taskcla, FC_ratio = args.FC_ratio, CNN_ratio = args.CNN_ratio).cuda()
+    net_old = network.BayesianConvNetwork(inputsize, taskcla, FC_ratio = args.FC_ratio, CNN_ratio = args.CNN_ratio).cuda()
     appr = approach.Appr(net, net_old, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
     
 else:
