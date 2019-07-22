@@ -109,8 +109,8 @@ class Appr(object):
                     if lr < self.lr_min:
                         print()
                         if args.conv_net:
-                            pass
-#                             break
+#                             pass
+                            break
                     patience = self.lr_patience
                     self.optimizer = self._get_optimizer(lr)
             print()
@@ -225,6 +225,8 @@ class Appr(object):
         
         out_features_max = 512
         alpha = 0.01
+        if args.conv_net:
+            alpha = 1
         if self.saved:
             alpha = 1
         
