@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from bayes_layer import BayesianLinear
 
 class BayesianNetwork(nn.Module):
-    def __init__(self, inputsize, taskcla, init_type = 'random', unitN = 400, split = False, notMNIST=False):
+    def __init__(self, inputsize, taskcla, unitN = 400, split = False, notMNIST=False):
         super().__init__()
 
         ncha,size,_=inputsize
@@ -15,12 +15,12 @@ class BayesianNetwork(nn.Module):
             unitN = 150
         self.taskcla=taskcla
         self.split = split
-        self.fc1 = BayesianLinear(28*28, unitN, init_type)
-        self.fc2 = BayesianLinear(unitN, unitN, init_type)
+        self.fc1 = BayesianLinear(28*28, unitN)
+        self.fc2 = BayesianLinear(unitN, unitN)
         
         if notMNIST:
-            self.fc3=BayesianLinear(unitN,unitN, init_type)
-            self.fc4=BayesianLinear(unitN,unitN, init_type)
+            self.fc3=BayesianLinear(unitN,unitN)
+            self.fc4=BayesianLinear(unitN,unitN)
         self.last=torch.nn.ModuleList()
         
         if split:
@@ -28,7 +28,7 @@ class BayesianNetwork(nn.Module):
                 self.last.append(torch.nn.Linear(unitN,n))
         
         else:
-            self.fc3 = BayesianLinear(unitN, taskcla[0][1], init_type)
+            self.fc3 = BayesianLinear(unitN, taskcla[0][1])
                 
         
     def forward(self, x, sample=False):

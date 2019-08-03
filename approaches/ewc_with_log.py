@@ -3,15 +3,23 @@ import numpy as np
 import torch
 from copy import deepcopy
 import utils
+from utils import *
 sys.path.append('..')
 from arguments import get_args
 import torch.nn.functional as F
+import torch.nn as nn
+from torchvision import models
+from torchvision.models.resnet import *
 args = get_args()
 
 if args.conv_net:
     from networks.conv_net import Net
 else:
     from networks.mlp import Net
+
+
+resnet_model = models.resnet18(pretrained=True).cuda()
+feature_extractor = nn.Sequential(*list(resnet_model.children())[:-4])
 
 class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
@@ -35,7 +43,7 @@ class Appr(object):
 
         self.ce=torch.nn.CrossEntropyLoss()
         self.optimizer=self._get_optimizer()
-        self.lamb=args.lamb                      # Grid search = [500,1000,2000,5000,10000,20000,50000]; best was 5000
+        self.lamb=args.lamb                      
         if len(args.parameter)>=1:
             params=args.parameter.split(',')
             print('Setting parameters to',params)
@@ -59,23 +67,43 @@ class Appr(object):
         for e in range(self.nepochs):
             # Train
             clock0=time.time()
-            self.train_epoch(t,xtrain,ytrain)
+            
+            # CUB 200 xtrain_cropped = crop(x_train)
+            xtrain_ = xtrain
+            xvalid_ = xvalid
+            if args.experiment == 'split_CUB200':
+                xtrain_ = crop(xtrain, 224, mode='train')
+                xvalid_ = crop(xvalid, 224, mode='valid')
+                num_batch = len(xtrain)
+            else:
+                num_batch = xtrain.size(0)
+            
+            self.train_epoch(t,xtrain_,ytrain)
+            
             clock1=time.time()
-            train_loss,train_acc=self.eval(t,xtrain,ytrain)
+            train_loss,train_acc=self.eval(t,xtrain_,ytrain)
             clock2=time.time()
             print('| Epoch {:3d}, time={:5.1f}ms/{:5.1f}ms | Train: loss={:.3f}, acc={:5.1f}% |'.format(
-                e+1,1000*self.sbatch*(clock1-clock0)/xtrain.size(0),1000*self.sbatch*(clock2-clock1)/xtrain.size(0),train_loss,100*train_acc),end='')
+                e+1,1000*self.sbatch*(clock1-clock0)/num_batch,
+                1000*self.sbatch*(clock2-clock1)/num_batch,train_loss,100*train_acc),end='')
             # Valid
-            valid_loss,valid_acc=self.eval(t,xvalid,yvalid)
+            valid_loss,valid_acc=self.eval(t,xvalid_,yvalid)
             print(' Valid: loss={:.3f}, acc={:5.1f}% |'.format(valid_loss,100*valid_acc),end='')
             
             #save log for current task & old tasks at every epoch
             self.logger.add(epoch=(t*self.nepochs)+e, task_num=t+1, valid_loss=valid_loss, valid_acc=valid_acc)
             for task in range(t): 
-                xvalid_t=data[task]['valid']['x'].cuda()
+                if args.experiment == 'split_CUB200':
+                    xvalid_t=data[task]['valid']['x']
+                    xvalid_t = crop(xvalid_t, 224, mode='valid')
+                else:
+                    xvalid_t=data[task]['valid']['x'].cuda()
+                
                 yvalid_t=data[task]['valid']['y'].cuda()
+                
                 valid_loss_t,valid_acc_t=self.eval(task,xvalid_t,yvalid_t)
-                self.logger.add(epoch=(t*self.nepochs)+e, task_num=task+1, valid_loss=valid_loss_t, valid_acc=valid_acc_t)
+                self.logger.add(epoch=(t*self.nepochs)+e, task_num=task+1, valid_loss=valid_loss_t,
+                                valid_acc=valid_acc_t)
             
             # Adapt lr
             if valid_loss < best_loss:
@@ -91,7 +119,8 @@ class Appr(object):
                     if lr < self.lr_min:
                         print()
                         if args.conv_net:
-                            break
+                            pass
+#                             break
                     patience = self.lr_patience
                     self.optimizer = self._get_optimizer(lr)
             print()
@@ -110,7 +139,7 @@ class Appr(object):
             fisher_old={}
             for n,_ in self.model.named_parameters():
                 fisher_old[n]=self.fisher[n].clone()
-        self.fisher=utils.fisher_matrix_diag(t,xtrain,ytrain,self.model,self.criterion, split = self.split)
+        self.fisher=utils.fisher_matrix_diag(t,xtrain_,ytrain,self.model,self.criterion, split = self.split)
         if t>0:
             # Watch out! We do not want to keep t models (or fisher diagonals) in memory, therefore we have to merge fisher diagonals
             for n,_ in self.model.named_parameters():
@@ -132,6 +161,9 @@ class Appr(object):
             else: b=r[i:]
             images=x[b]
             targets=y[b]
+            
+            if args.experiment == 'split_CUB200':
+                images = feature_extractor(images)
 
             # Forward current model
             if self.split:
@@ -156,6 +188,12 @@ class Appr(object):
 
         r = np.arange(x.size(0))
         r = torch.LongTensor(r).cuda()
+        if t==2:
+            for i in range(y.size(0)):
+                if y[i].data >= 20:
+                    print(y[i].data)
+
+
 
         # Loop batches
         for i in range(0,len(r),self.sbatch):
@@ -163,10 +201,15 @@ class Appr(object):
             else: b=r[i:]
             images=x[b]
             targets=y[b]
-
+            
+            if args.experiment == 'split_CUB200':
+                images = feature_extractor(images)
+            
             # Forward
             if self.split:
                 output = self.model.forward(images)[t]
+                if t==2:
+                    print(output.size(1))
             else:
                 output = self.model.forward(images)
                 

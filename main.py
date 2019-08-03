@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 
 import utils
+from utils import *
 from arguments import get_args
 
 
@@ -24,6 +25,12 @@ elif args.approach == 'baye':
                                                                                         args.approach,args.seed,args.beta, 
                                                                                         args.FC_ratio, args.CNN_ratio,
                                                                                         args.unitN,args.batch_size, args.nepochs)
+# elif args.approach == 'baye':
+#     log_name = '{}_{}_{}_{}_beta_{:.7f}_std_{:.7f}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, 
+#                                                                                       args.approach,args.seed,args.beta, 
+#                                                                                       args_std,args.unitN,args.batch_size, 
+#                                                                                       args.nepochs)
+
 elif args.approach == 'hat':
     log_name = '{}_{}_{}_{}_alpha_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, args.approach, args.seed,
                                                                        args.alpha, args.unitN, args.batch_size, args.nepochs)
@@ -45,7 +52,17 @@ print('=' * 100)
 # Split
 split = False
 notMNIST = False
-split_experiment = ['split_mnist', 'split_notmnist', 'split_cifar100','split_cifar10_100','split_pmnist','split_row_pmnist']
+split_experiment = ['split_mnist', 
+                    'split_notmnist', 
+                    'split_cifar10',
+                    'split_cifar100',
+                    'split_cifar10_100',
+                    'split_pmnist',
+                    'split_row_pmnist', 
+                    'split_CUB200',
+                    'split_tiny_imagenet',
+                    'split_mini_imagenet', 
+                    'split_omniglot']
 if args.experiment in split_experiment:
     split = True
 if args.experiment == 'split_notmnist':
@@ -70,10 +87,20 @@ elif args.experiment == 'split_mnist':
     from dataloaders import split_mnist as dataloader
 elif args.experiment == 'split_notmnist':
     from dataloaders import split_notmnist as dataloader
+elif args.experiment == 'split_cifar10':
+    from dataloaders import split_cifar10 as dataloader
 elif args.experiment == 'split_cifar100':
     from dataloaders import split_cifar100 as dataloader
 elif args.experiment == 'split_cifar10_100':
     from dataloaders import split_cifar10_100 as dataloader
+elif args.experiment == 'split_CUB200':
+    from dataloaders import split_CUB200 as dataloader
+elif args.experiment == 'split_tiny_imagenet':
+    from dataloaders import split_tiny_imagenet as dataloader
+elif args.experiment == 'split_mini_imagenet':
+    from dataloaders import split_mini_imagenet as dataloader
+elif args.experiment == 'split_omniglot':
+    from dataloaders import split_omniglot as dataloader
 elif args.experiment == 'mixture':
     from dataloaders import mixture as dataloader
 
@@ -131,12 +158,26 @@ if args.approach == 'hat' or args.approach == 'hat-test':
         from networks import mlp_hat as network
 elif args.approach == 'baye':
     if args.conv_net:
-        from core import conv_networks as network
+        if args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100' or args.experiment == 'split_cifar10':
+            from core import conv_networks as network
+        elif args.experiment == 'split_mini_imagenet' or args.experiment == 'split_tiny_imagenet':
+            from core import conv_networks_vgg as network
+        elif args.experiment == 'split_CUB200':
+            from core import conv_networks_resnet as network
+        elif args.experiment == 'split_omniglot':
+            from core import conv_networks_omniglot as network
     else:
         from core import networks as network
 else:
     if args.conv_net:
-        from networks import conv_net as network
+        if args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100' or args.experiment == 'split_cifar10':
+            from networks import conv_net as network
+        elif args.experiment == 'split_mini_imagenet' or args.experiment == 'split_tiny_imagenet':
+            from networks import conv_net_vgg as network
+        elif args.experiment == 'split_CUB200':
+            from networks import conv_net_resnet as network
+        elif args.experiment == 'split_omniglot':
+            from networks import conv_net_omniglot as network
     else:
         from networks import mlp as network
 
@@ -153,17 +194,16 @@ print('Inits...')
 # print (inputsize,taskcla)
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 if args.approach == 'baye' and args.conv_net == False:
-    net = network.BayesianNetwork(inputsize, taskcla, init_type='random',unitN=args.unitN, split = split, 
-                                  notMNIST=notMNIST).cuda()
-#     net_old = network.BayesianNetwork(inputsize, taskcla, init_type='zero',unitN=args.unitN, split = split, 
-#                                       notMNIST=notMNIST).cuda()
-    net_old = network.BayesianNetwork(inputsize, taskcla, init_type='random',unitN=args.unitN, split = split, 
-                                      notMNIST=notMNIST).cuda()
+    net = network.BayesianNetwork(inputsize, taskcla,unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
+
+    net_old = network.BayesianNetwork(inputsize, taskcla,unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
     appr = approach.Appr(net, net_old, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
 
 elif args.approach == 'baye' and args.conv_net == True:
-    net = network.BayesianConvNetwork(inputsize, taskcla, FC_ratio = args.FC_ratio, CNN_ratio = args.CNN_ratio).cuda()
-    net_old = network.BayesianConvNetwork(inputsize, taskcla, FC_ratio = args.FC_ratio, CNN_ratio = args.CNN_ratio).cuda()
+    net = network.BayesianConvNetwork(inputsize, taskcla, CNN_ratio = args.CNN_ratio).cuda()
+    net_old = network.BayesianConvNetwork(inputsize, taskcla, CNN_ratio = args.CNN_ratio).cuda()
+#     net = network.BayesianConvNetwork(inputsize, taskcla, rho_init = args.rho).cuda()
+#     net_old = network.BayesianConvNetwork(inputsize, taskcla, rho_init = args.rho).cuda()
     appr = approach.Appr(net, net_old, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
     
 else:
@@ -187,8 +227,7 @@ print('-' * 100)
 acc = np.zeros((len(taskcla), len(taskcla)), dtype=np.float32)
 lss = np.zeros((len(taskcla), len(taskcla)), dtype=np.float32)
 for t, ncla in taskcla:
-    if t == args.tasknum:
-        break
+    
     print('*' * 100)
     print('Task {:2d} ({:s})'.format(t, data[t]['name']))
     print('*' * 100)
@@ -213,9 +252,14 @@ for t, ncla in taskcla:
             task = [task_t, task_v]
     else:
         # Get data
-        xtrain = data[t]['train']['x'].cuda()
+        if args.experiment == 'split_CUB200':
+            xtrain = data[t]['train']['x']
+            xvalid = data[t]['valid']['x']
+        else:
+            xtrain = data[t]['train']['x'].cuda()
+            xvalid = data[t]['valid']['x'].cuda()
+            
         ytrain = data[t]['train']['y'].cuda()
-        xvalid = data[t]['valid']['x'].cuda()
         yvalid = data[t]['valid']['y'].cuda()
         task = t
 
@@ -225,7 +269,11 @@ for t, ncla in taskcla:
 
     # Test
     for u in range(t + 1):
-        xtest = data[u]['test']['x'].cuda()
+        if args.experiment == 'split_CUB200':
+            xtest = data[u]['test']['x']
+            xtest = crop(xtest, 224, mode='test')
+        else:
+            xtest = data[u]['test']['x'].cuda()
         ytest = data[u]['test']['y'].cuda()
         test_loss, test_acc = appr.eval(u, xtest, ytest)
         print('>>> Test on task {:2d} - {:15s}: loss={:.3f}, acc={:5.1f}% <<<'.format(u, data[u]['name'], test_loss,

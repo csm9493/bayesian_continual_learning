@@ -5,7 +5,7 @@ import utils
 from torchvision import datasets,transforms
 from sklearn.utils import shuffle
 
-def get(seed=0,pc_valid=0.10, tasknum = 10):
+def get(seed=0,pc_valid=0.10, tasknum = 20):
     data={}
     taskcla=[]
     size=[3,32,32]
@@ -42,14 +42,14 @@ def get(seed=0,pc_valid=0.10, tasknum = 10):
                 data[t][s]['x']=torch.stack(data[t][s]['x']).view(-1,size[0],size[1],size[2])
                 data[t][s]['y']=torch.LongTensor(np.array(data[t][s]['y'],dtype=int)).view(-1)
                 torch.save(data[t][s]['x'], os.path.join(os.path.expanduser('../dat/binary_split_cifar100'),
-                                                         'data'+str(t)+s+'x.bin'))
+                                                         'data'+str(t+1)+s+'x.bin'))
                 torch.save(data[t][s]['y'], os.path.join(os.path.expanduser('../dat/binary_split_cifar100'),
-                                                         'data'+str(t)+s+'y.bin'))
+                                                         'data'+str(t+1)+s+'y.bin'))
     
     # Load binary files
     data={}
     data[0] = dict.fromkeys(['name','ncla','train','test'])
-    ids=list(shuffle(np.arange(10),random_state=seed) + 1)
+    ids=list(shuffle(np.arange(10),random_state=seed)+1)
     print('Task order =',ids)
     for i in range(10):
         data[i] = dict.fromkeys(['name','ncla','train','test'])
