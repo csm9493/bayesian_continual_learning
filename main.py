@@ -21,15 +21,15 @@ elif args.approach == 'ewc_with_log':
     log_name = '{}_{}_{}_{}_lamb_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, args.approach,args.seed,
                                                                        args.lamb, args.unitN, args.batch_size, args.nepochs)
 elif args.approach == 'baye':
-    log_name = '{}_{}_{}_{}_beta_{:.7f}_FC_{:.7f}_CNN_{:.7f}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, 
-                                                                                        args.approach,args.seed,args.beta, 
-                                                                                        args.FC_ratio, args.CNN_ratio,
-                                                                                        args.unitN,args.batch_size, args.nepochs)
+    log_name = '{}_{}_{}_{}_beta_{:.7f}_FC_{:.7f}_CNN_{:.7f}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
+        args.date, args.experiment, args.approach, args.seed, args.beta, args.FC_ratio, args.CNN_ratio, 
+        args.lr_rho, args.unitN, args.batch_size, args.nepochs)
+
 # elif args.approach == 'baye':
-#     log_name = '{}_{}_{}_{}_beta_{:.7f}_std_{:.7f}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, 
-#                                                                                       args.approach,args.seed,args.beta, 
-#                                                                                       args_std,args.unitN,args.batch_size, 
-#                                                                                       args.nepochs)
+#     log_name = '{}_{}_{}_{}_beta_{:.7f}_std_{:.3f}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
+#         args.date, args.experiment, args.approach,args.seed,args.beta, 
+#         args_std,args.lr_rho,args.unitN,args.batch_size,
+#         args.nepochs)
 
 elif args.approach == 'hat':
     log_name = '{}_{}_{}_{}_alpha_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, args.approach, args.seed,
@@ -56,6 +56,7 @@ split_experiment = ['split_mnist',
                     'split_notmnist', 
                     'split_cifar10',
                     'split_cifar100',
+                    'split_cifar100_20',
                     'split_cifar10_100',
                     'split_pmnist',
                     'split_row_pmnist', 
@@ -91,6 +92,8 @@ elif args.experiment == 'split_cifar10':
     from dataloaders import split_cifar10 as dataloader
 elif args.experiment == 'split_cifar100':
     from dataloaders import split_cifar100 as dataloader
+elif args.experiment == 'split_cifar100_20':
+    from dataloaders import split_cifar100_20 as dataloader
 elif args.experiment == 'split_cifar10_100':
     from dataloaders import split_cifar10_100 as dataloader
 elif args.experiment == 'split_CUB200':
@@ -158,7 +161,7 @@ if args.approach == 'hat' or args.approach == 'hat-test':
         from networks import mlp_hat as network
 elif args.approach == 'baye':
     if args.conv_net:
-        if args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100' or args.experiment == 'split_cifar10':
+        if args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100' or args.experiment == 'split_cifar10' or args.experiment == 'split_cifar100_20':
             from core import conv_networks as network
         elif args.experiment == 'split_mini_imagenet' or args.experiment == 'split_tiny_imagenet':
             from core import conv_networks_vgg as network
@@ -170,7 +173,7 @@ elif args.approach == 'baye':
         from core import networks as network
 else:
     if args.conv_net:
-        if args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100' or args.experiment == 'split_cifar10':
+        if args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100' or args.experiment == 'split_cifar10' or args.experiment == 'split_cifar100_20':
             from networks import conv_net as network
         elif args.experiment == 'split_mini_imagenet' or args.experiment == 'split_tiny_imagenet':
             from networks import conv_net_vgg as network
@@ -202,9 +205,10 @@ if args.approach == 'baye' and args.conv_net == False:
 elif args.approach == 'baye' and args.conv_net == True:
     net = network.BayesianConvNetwork(inputsize, taskcla, CNN_ratio = args.CNN_ratio).cuda()
     net_old = network.BayesianConvNetwork(inputsize, taskcla, CNN_ratio = args.CNN_ratio).cuda()
-#     net = network.BayesianConvNetwork(inputsize, taskcla, rho_init = args.rho).cuda()
-#     net_old = network.BayesianConvNetwork(inputsize, taskcla, rho_init = args.rho).cuda()
-    appr = approach.Appr(net, net_old, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
+#     net = network.BayesianConvNetwork(inputsize, taskcla, rho_init=args.rho).cuda()
+#     net_old = network.BayesianConvNetwork(inputsize, taskcla, rho_init=args.rho).cuda()
+
+    appr = approach.Appr(net, net_old, sbatch=args.batch_size, lr=args.lr, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
     
 else:
     if args.conv_net == False:

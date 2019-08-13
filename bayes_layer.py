@@ -53,7 +53,6 @@ class BayesianLinear(nn.Module):
         
         total_var = 2 / fan_in
         noise_var = total_var * ratio
-#         noise_var = 1 / fan_in
         mu_var = total_var - noise_var
         
         noise_std, mu_std = math.sqrt(noise_var), math.sqrt(mu_var)
@@ -101,7 +100,6 @@ class _BayesianConvNd(nn.Module):
         _, fan_out = _calculate_fan_in_and_fan_out(self.weight_mu)
         total_var = 2 / fan_out
         noise_var = total_var * ratio
-#         noise_var = 1 / (4*fan_out)
         mu_var = total_var - noise_var
         
         noise_std, mu_std = math.sqrt(noise_var), math.sqrt(mu_var)
@@ -125,7 +123,7 @@ class BayesianConv2D(_BayesianConvNd):
         padding = _pair(padding)
         dilation = _pair(dilation)
         super(BayesianConv2D, self).__init__(in_channels, out_channels, kernel_size, 
-                                             stride, padding, dilation, False, _pair(0), groups, bias, init_type, ratio)
+                                             stride, padding, dilation, False, _pair(0), groups, bias, ratio)
     
     def forward(self, input, sample = False):
         if sample:
@@ -138,39 +136,40 @@ class BayesianConv2D(_BayesianConvNd):
         return F.conv2d(input, weight, bias, self.stride, self.padding, self.dilation, self.groups)
 
 # class BayesianLinear(nn.Module):
-#     def __init__(self, in_features, out_features, init_type = 'random', rho_init = -2.783):
+#     def __init__(self, in_features, out_features, rho_init = -2.783):
 #         super().__init__()
 #         self.in_features = in_features
 #         self.out_features = out_features
 #         self.rho_init = rho_init
         
 #         self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features))
-#         nn.init.kaiming_uniform_(self.weight_mu)
-#         self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(-0.2,0.2))
+        
+#         fan_in, _ = _calculate_fan_in_and_fan_out(self.weight_mu)
+#         total_var = 2 / fan_in
+#         noise_std = np.log(1+np.exp(rho_init))
+#         mu_std = np.sqrt(total_var - noise_std ** 2)
+#         bound = math.sqrt(3.0) * mu_std
+
+#         nn.init.uniform_(self.weight_mu, -bound, bound)
         
 #         self.weight_rho = nn.Parameter(torch.Tensor(out_features,1).uniform_(rho_init,rho_init))
-#         self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(rho_init,rho_init))
-        
-#         if init_type != 'random':
-#             nn.init.uniform_(self.weight_rho,0.541,0.541)
-
 #         self.weight = Gaussian(self.weight_mu, self.weight_rho)
-#         self.bias = Gaussian(self.bias_mu, self.bias_rho)
+#         self.bias = nn.Parameter(torch.Tensor(out_features).uniform_(0,0))
 
 #     def forward(self, input, sample=False):
 #         if sample:
 #             weight = self.weight.sample()
-#             bias = self.bias.sample()
+#             bias = self.bias
 #         else:
 #             weight = self.weight.mu
-#             bias = self.bias.mu
+#             bias = self.bias
 
 #         return F.linear(input, weight, bias)
 
 
 # class _BayesianConvNd(nn.Module):
 #     def __init__(self, in_channels, out_channels, kernel_size, 
-#                  stride,padding, dilation, transposed, output_padding, groups, bias, init_type, rho_init):
+#                  stride,padding, dilation, transposed, output_padding, groups, bias, rho_init):
 #         super(_BayesianConvNd, self).__init__()
 #         if in_channels % groups != 0:
 #             raise ValueError('in_channels must be divisible by groups')
@@ -188,40 +187,41 @@ class BayesianConv2D(_BayesianConvNd):
 #         self.bias = bias
         
 #         self.weight_mu = nn.Parameter(torch.Tensor(out_channels, in_channels // groups, *kernel_size))
-#         nn.init.kaiming_uniform_(self.weight_mu)
+        
+#         _, fan_out = _calculate_fan_in_and_fan_out(self.weight_mu)
+#         total_var = 2 / fan_out
+#         noise_std = np.log(1+np.exp(rho_init))
+#         mu_std = np.sqrt(total_var - noise_std ** 2)
+#         bound = math.sqrt(3.0) * mu_std
+
+#         nn.init.uniform_(self.weight_mu, -bound, bound)
+        
 #         self.weight_rho = nn.Parameter(torch.Tensor(out_channels, 1, 1, 1).uniform_(rho_init,rho_init))
         
-#         if bias:
-#             self.bias_mu = nn.Parameter(torch.Tensor(out_channels))
-#             self.bias_rho = nn.Parameter(torch.Tensor(out_channels).uniform_(rho_init,rho_init))
-#             self.bias_ = Gaussian(self.bias_mu, self.bias_rho)
         
-#         if init_type != 'random':
-#             nn.init.uniform_(self.weight_rho, 0.541, 0.541)
-            
+#         self.bias = nn.Parameter(torch.Tensor(out_channels).uniform_(0,0))
 #         self.weight = Gaussian(self.weight_mu, self.weight_rho)
         
         
         
 # class BayesianConv2D(_BayesianConvNd):
 #     def __init__(self, in_channels, out_channels, kernel_size, stride=1, 
-#                  padding=0, dilation=1, groups=1, bias=True, init_type = 'random', rho_init = -2.783):
+#                  padding=0, dilation=1, groups=1, bias=True, rho_init = -2.783):
 #         kernel_size = _pair(kernel_size)
 #         stride = _pair(stride)
 #         padding = _pair(padding)
 #         dilation = _pair(dilation)
 #         super(BayesianConv2D, self).__init__(in_channels, out_channels, kernel_size, 
-#                                              stride, padding, dilation, False, _pair(0), groups, bias, init_type, rho_init)
+#                                              stride, padding, dilation, False, _pair(0), groups, bias, rho_init)
     
 #     def forward(self, input, sample = False):
 #         bias_ = None
 #         if sample:
 #             weight = self.weight.sample()
-#             if self.bias:
-#                 bias_ = self.bias_.sample()
+#             bias = self.bias
+                
 #         else:
 #             weight = self.weight.mu
-#             if self.bias:
-#                 bias_ = self.bias_.mu
+#             bias = self.bias
         
 #         return F.conv2d(input, weight, bias_, self.stride, self.padding, self.dilation, self.groups)
