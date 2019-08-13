@@ -40,6 +40,7 @@ class Net(torch.nn.Module):
         h=h.view(x.size(0),-1)
         h=self.drop2(self.relu(self.fc1(h)))
         h=self.drop2(self.relu(self.fc2(h)))
+        
         y=[]
         for t,i in self.taskcla:
             y.append(self.last[t](h))

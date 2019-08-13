@@ -164,7 +164,7 @@ elif args.approach == 'baye':
         if args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100' or args.experiment == 'split_cifar10' or args.experiment == 'split_cifar100_20':
             from core import conv_networks as network
         elif args.experiment == 'split_mini_imagenet' or args.experiment == 'split_tiny_imagenet':
-            from core import conv_networks_vgg as network
+            from core import conv_networks_resnet18 as network
         elif args.experiment == 'split_CUB200':
             from core import conv_networks_resnet as network
         elif args.experiment == 'split_omniglot':
@@ -176,7 +176,7 @@ else:
         if args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100' or args.experiment == 'split_cifar10' or args.experiment == 'split_cifar100_20':
             from networks import conv_net as network
         elif args.experiment == 'split_mini_imagenet' or args.experiment == 'split_tiny_imagenet':
-            from networks import conv_net_vgg as network
+            from networks import conv_net_resnet18 as network
         elif args.experiment == 'split_CUB200':
             from networks import conv_net_resnet as network
         elif args.experiment == 'split_omniglot':
@@ -203,8 +203,8 @@ if args.approach == 'baye' and args.conv_net == False:
     appr = approach.Appr(net, net_old, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
 
 elif args.approach == 'baye' and args.conv_net == True:
-    net = network.BayesianConvNetwork(inputsize, taskcla, CNN_ratio = args.CNN_ratio).cuda()
-    net_old = network.BayesianConvNetwork(inputsize, taskcla, CNN_ratio = args.CNN_ratio).cuda()
+    net = network.BayesianConvNetwork(inputsize, taskcla, ratio = args.CNN_ratio).cuda()
+    net_old = network.BayesianConvNetwork(inputsize, taskcla, ratio = args.CNN_ratio).cuda()
 #     net = network.BayesianConvNetwork(inputsize, taskcla, rho_init=args.rho).cuda()
 #     net_old = network.BayesianConvNetwork(inputsize, taskcla, rho_init=args.rho).cuda()
 

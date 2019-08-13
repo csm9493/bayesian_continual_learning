@@ -107,8 +107,7 @@ class _BayesianConvNd(nn.Module):
         rho_init = np.log(np.exp(noise_std)-1)
         
         nn.init.uniform_(self.weight_mu, -bound, bound)
-    
-        self.bias = nn.Parameter(torch.Tensor(out_channels).uniform_(0,0))
+        self.bias = nn.Parameter(torch.Tensor(out_channels).uniform_(0,0), requires_grad = bias)
         
         self.weight_rho = nn.Parameter(torch.Tensor(out_channels, 1, 1, 1).uniform_(rho_init,rho_init))
         
@@ -128,12 +127,11 @@ class BayesianConv2D(_BayesianConvNd):
     def forward(self, input, sample = False):
         if sample:
             weight = self.weight.sample()
-            bias = self.bias
+            
         else:
             weight = self.weight.mu
-            bias = self.bias
         
-        return F.conv2d(input, weight, bias, self.stride, self.padding, self.dilation, self.groups)
+        return F.conv2d(input, weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
 
 # class BayesianLinear(nn.Module):
 #     def __init__(self, in_features, out_features, rho_init = -2.783):

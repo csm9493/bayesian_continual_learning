@@ -3,12 +3,23 @@ import numpy as np
 import torch
 
 import utils
+sys.path.append('..')
+from arguments import get_args
+import torch.nn.functional as F
+args = get_args()
+
+if args.conv_net:
+    from networks.conv_net_hat import Net
+else:
+    from networks.mlp_hat import Net
+
+
 
 ########################################################################################################################
 
 class Appr(object):
 
-    def __init__(self,model,nepochs=100,sbatch=64,lr=0.05,lr_min=1e-4,lr_factor=3,lr_patience=5,clipgrad=10000,lamb=0.75,smax=400,args=None):
+    def __init__(self,model,nepochs=100,sbatch=256,lr=0.05,lr_min=1e-4,lr_factor=3,lr_patience=5,clipgrad=10000,lamb=0.75,smax=400,args=None, log_name=None, split=False):
         self.model=model
 
         self.nepochs=nepochs
@@ -18,11 +29,14 @@ class Appr(object):
         self.lr_factor=lr_factor
         self.lr_patience=lr_patience
         self.clipgrad=clipgrad
+        
+        file_name = log_name
+        self.logger = utils.logger(file_name=file_name, resume=False, path='./result_data/csvdata/', data_format='csv')        
 
         self.ce=torch.nn.CrossEntropyLoss()
         self.optimizer=self._get_optimizer()
 
-        self.lamb=lamb          # Grid search = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2.5, 4]; chosen was 0.75
+        self.lamb=args.alpha          # Grid search = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2.5, 4]; chosen was 0.75
         self.smax=smax          # Grid search = [25, 50, 100, 200, 400, 800]; chosen was 400
         if len(args.parameter)>=1:
             params=args.parameter.split(',')
@@ -32,14 +46,14 @@ class Appr(object):
 
         self.mask_pre=None
         self.mask_back=None
-
+        self.split=split
         return
 
     def _get_optimizer(self,lr=None):
         if lr is None: lr=self.lr
-        return torch.optim.SGD(self.model.parameters(),lr=lr)
+        return torch.optim.SGD(self.model.parameters(), lr=lr)
 
-    def train(self,t,xtrain,ytrain,xvalid,yvalid):
+    def train(self,t,xtrain,ytrain,xvalid,yvalid,data,inputsize,taskcla):
         best_loss=np.inf
         best_model=utils.get_model(self.model)
         lr=self.lr
@@ -73,7 +87,8 @@ class Appr(object):
                         print(' lr={:.1e}'.format(lr),end='')
                         if lr<self.lr_min:
                             print()
-                            break
+                            if args.conv_net:
+                                break
                         patience=self.lr_patience
                         self.optimizer=self._get_optimizer(lr)
                 print()
@@ -82,7 +97,7 @@ class Appr(object):
 
         # Restore best validation model
         utils.set_model_(self.model,best_model)
-
+        self.logger.save()
         # Activations mask
         task=torch.autograd.Variable(torch.LongTensor([t]).cuda(),volatile=False)
         mask=self.model.mask(task,s=self.smax)
@@ -120,8 +135,9 @@ class Appr(object):
             s=(self.smax-1/self.smax)*i/len(r)+1/self.smax
 
             # Forward
-            outputs,masks=self.model.forward(task,images,s=s)
-            output=outputs[t]
+            output,masks=self.model.forward(task,images,s=s)
+            if self.split:
+                output=output[t]
             loss,_=self.criterion(output,targets,masks)
 
             # Backward
@@ -177,8 +193,9 @@ class Appr(object):
             task=torch.autograd.Variable(torch.LongTensor([t]).cuda(),volatile=True)
 
             # Forward
-            outputs,masks=self.model.forward(task,images,s=self.smax)
-            output=outputs[t]
+            output,masks=self.model.forward(task,images,s=self.smax)
+            if self.split:
+                output=output[t]
             loss,reg=self.criterion(output,targets,masks)
             _,pred=output.max(1)
             hits=(pred==targets).float()
