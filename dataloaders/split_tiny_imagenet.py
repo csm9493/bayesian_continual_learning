@@ -22,63 +22,35 @@ def split_tiny_imagenet_loader(root):
         data[i]['train'] = {'x': [], 'y': []}
         data[i]['test'] = {'x': [], 'y': []}
 
-    label_map = {}
     train_folders = sorted(os.listdir(root+'/train'))
-    for i,folder in enumerate(train_folders):
-        folder_path = os.path.join(root+'/train', folder)
-        img_list = sorted(os.listdir(folder_path))
-        for j,ims in enumerate(img_list):
-            
+    valid_folders = sorted(os.listdir(root+'/val'))
     
-    val_images = sorted(os.listdir(root+'/val/images'))
-    with open(root+'/val/val_labels.txt') as f:
-        val_labels = f.read().splitlines()
-    
-    img_arr = np.zeros(())
-    for i,folder in enumerate(train_folders):
-        folder_path = os.path.join(root+'/train', folder+'/images')
-        img_list = sorted(os.listdir(folder_path))[500:]
-        for j,ims in enumerate(img_list):
-            img_path = os.path.join(folder_path, ims)
-            img = imread(img_path)
-            
+    folders_arr = [train_folders, valid_folders]
+    s = ['train','test']
+    dir_arr = ['/train', '/val']
     
     mean = np.array([[[122.65, 114.30, 101.18]]])
-    std = np.array([[[4.63, 6.31, 8.00]]])
+    std = np.array([[[70.50, 68.45, 71.82]]])
     
-    for i,folder in enumerate(train_folders):
-        folder_path = os.path.join(root+'/train', folder+'/images')
-        label_map[folder] = i
-        img_list = sorted(os.listdir(folder_path))[500:]
-        for ims in img_list:
-            img_path = os.path.join(folder_path, ims)
-            img = (imread(img_path) - mean) / std
-            
-            try:
-                img = (img - mean) / std
-            except:
-                continue
-            
-            img_tensor = Tensor(img).float()
-            task_idx = i//20
-            label = i % 20
-            data[task_idx]['train']['x'].append(img_tensor)
-            data[task_idx]['train']['y'].append(label) 
+    for idx, folders in enumerate(folders_arr):
+        for i, folder in enumerate(folders):
+            folder_path = os.path.join(root+dir_arr[idx], folder)
+            img_list = sorted(os.listdir(folder_path))
+            if(i==200):
+                print(folder)
+            for j,ims in enumerate(img_list):
+                img_path = os.path.join(folder_path, ims)
+                img = imread(img_path)
+                if len(img.shape) == 2:
+                    continue
 
-    for i,ims in enumerate(val_images):
-        img_path = os.path.join(root+'/val/images', ims)
-        img = imread(img_path)
+                img = (img - mean) / std
+                img_tensor = Tensor(img).float()
+                task_idx = i//20
+                label = i % 20
+                data[task_idx][s[idx]]['x'].append(img_tensor)
+                data[task_idx][s[idx]]['y'].append(label) 
         
-        try:
-            img = (img - mean) / std
-        except:
-            continue
-        img_tensor = Tensor(img).float()
-        task_idx = label_map[val_labels[i]] // 20
-        label = label_map[val_labels[i]] % 20
-        data[task_idx]['test']['x'].append(img_tensor)
-        data[task_idx]['test']['y'].append(label) 
-    
     return data
 
 
@@ -98,7 +70,7 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 10):
         
         for i in range(10):
             for s in ['train', 'test']:
-                data[i][s]['x'] = torch.stack(data[i][s]['x'])
+                data[i][s]['x'] = torch.stack(data[i][s]['x']).view(-1,size[0],size[1],size[2])
                 data[i][s]['y'] = torch.LongTensor(np.array(data[i][s]['y'], dtype=int)).view(-1)
                 torch.save(data[i][s]['x'],os.path.join(os.path.expanduser('../dat/binary_split_tiny_imagenet'),
                                                         'data' + str(i) + s + 'x.bin'))
@@ -132,6 +104,3 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 10):
     data['ncla'] = n
     
     return data, taskcla, size
-
-get(seed=0, fixed_order=False, pc_valid=0, tasknum = 10)
-

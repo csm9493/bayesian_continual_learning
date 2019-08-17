@@ -74,7 +74,7 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 10):
                 data[i][s]['y']=torch.load(os.path.join(os.path.expanduser('../dat/binary_split_mini_imagenet'),
                                                         'data'+str(ids[i])+s+'y.bin'))
             data[i]['ncla']=len(np.unique(data[i]['train']['y'].numpy()))
-            data[i]['name']='mini_imagenet-'+str(ids[i-1])
+            data[i]['name']='mini_imagenet-'+str(ids[i])
         
     for t in range(tasknum):
         data[t]['valid'] = {}

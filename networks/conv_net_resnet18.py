@@ -51,7 +51,7 @@ class BasicBlock(nn.Module):
 class Net(nn.Module):
     def __init__(self, inputsize, taskcla):
         super(Net, self).__init__()
-        ncha,size,_=inputsize
+        ncha,size,_=inputsize[0]
         self.taskcla = taskcla
         
         self.inplanes = 64
@@ -60,6 +60,7 @@ class Net(nn.Module):
         self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(BasicBlock, 64, self.blocks)
         self.layer2 = self._make_layer(BasicBlock, 128, self.blocks, stride=2)
         self.layer3 = self._make_layer(BasicBlock, 256, self.blocks, stride=2)

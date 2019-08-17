@@ -14,16 +14,21 @@ tstart = time.time()
 
 args = get_args()
 args_std = np.log(1+np.exp(args.rho))
-if args.approach == 'si_with_log':
+if args.approach == 'si':
     log_name = '{}_{}_{}_{}_c_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, args.approach,args.seed, 
                                                                     args.c, args.unitN, args.batch_size, args.nepochs)
-elif args.approach == 'ewc_with_log':
+elif args.approach == 'ewc' or args.approach == 'rwalk' or args.approach == 'mas':
     log_name = '{}_{}_{}_{}_lamb_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, args.approach,args.seed,
                                                                        args.lamb, args.unitN, args.batch_size, args.nepochs)
 elif args.approach == 'baye':
-    log_name = '{}_{}_{}_{}_beta_{:.7f}_FC_{:.7f}_CNN_{:.7f}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
-        args.date, args.experiment, args.approach, args.seed, args.beta, args.FC_ratio, args.CNN_ratio, 
+    log_name = '{}_{}_{}_{}_beta_{:.7f}_ratio_{:.7f}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
+        args.date, args.experiment, args.approach, args.seed, args.beta, args.ratio, 
         args.lr_rho, args.unitN, args.batch_size, args.nepochs)
+
+# elif args.approach == 'baye':
+#     log_name = '{}_{}_{}_{}_beta_{:.7f}_ratio_{:.7f}_alpha_{:.2f}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
+#         args.date, args.experiment, args.approach, args.seed, args.beta, args.ratio, args.alpha, 
+#         args.lr_rho, args.unitN, args.batch_size, args.nepochs)
 
 # elif args.approach == 'baye':
 #     log_name = '{}_{}_{}_{}_beta_{:.7f}_std_{:.3f}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
@@ -134,10 +139,12 @@ elif args.approach == 'lfl':
     from approaches import lfl as approach
 elif args.approach == 'ewc':
     from approaches import ewc as approach
-elif args.approach == 'ewc_with_log':
-    from approaches import ewc_with_log as approach
-elif args.approach == 'si_with_log':
-    from approaches import si_with_log as approach
+elif args.approach == 'si':
+    from approaches import si as approach
+elif args.approach == 'rwalk':
+    from approaches import rwalk as approach
+elif args.approach == 'mas':
+    from approaches import mas as approach
 elif args.approach == 'imm-mean':
     from approaches import imm_mean as approach
 elif args.approach == 'imm-mode':
@@ -160,27 +167,21 @@ if args.approach == 'hat' or args.approach == 'hat-test':
     else:
         from networks import mlp_hat as network
 elif args.approach == 'baye':
-    if args.conv_net:
-        if args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100' or args.experiment == 'split_cifar10' or args.experiment == 'split_cifar100_20':
-            from core import conv_networks as network
-        elif args.experiment == 'split_mini_imagenet' or args.experiment == 'split_tiny_imagenet':
-            from core import conv_networks_resnet18 as network
-        elif args.experiment == 'split_CUB200':
-            from core import conv_networks_resnet as network
-        elif args.experiment == 'split_omniglot':
-            from core import conv_networks_omniglot as network
+    if args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100' or args.experiment == 'split_cifar10' or args.experiment == 'split_cifar100_20':
+        from core import conv_networks as network
+    elif args.experiment == 'mixture' or args.experiment == 'split_mini_imagenet' or args.experiment == 'split_tiny_imagenet' or args.experiment == 'split_CUB200':
+        from core import conv_networks_resnet18 as network
+    elif args.experiment == 'split_omniglot':
+        from core import conv_networks_omniglot as network
     else:
         from core import networks as network
 else:
-    if args.conv_net:
-        if args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100' or args.experiment == 'split_cifar10' or args.experiment == 'split_cifar100_20':
-            from networks import conv_net as network
-        elif args.experiment == 'split_mini_imagenet' or args.experiment == 'split_tiny_imagenet':
-            from networks import conv_net_resnet18 as network
-        elif args.experiment == 'split_CUB200':
-            from networks import conv_net_resnet as network
-        elif args.experiment == 'split_omniglot':
-            from networks import conv_net_omniglot as network
+    if args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100' or args.experiment == 'split_cifar10' or args.experiment == 'split_cifar100_20':
+        from networks import conv_net as network
+    elif args.experiment == 'mixture' or args.experiment == 'split_mini_imagenet' or args.experiment == 'split_tiny_imagenet' or args.experiment == 'split_CUB200':
+        from networks import conv_net_resnet18 as network
+    elif args.experiment == 'split_omniglot':
+        from networks import conv_net_omniglot as network
     else:
         from networks import mlp as network
 
@@ -198,13 +199,12 @@ print('Inits...')
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 if args.approach == 'baye' and args.conv_net == False:
     net = network.BayesianNetwork(inputsize, taskcla,unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
-
     net_old = network.BayesianNetwork(inputsize, taskcla,unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
     appr = approach.Appr(net, net_old, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
 
 elif args.approach == 'baye' and args.conv_net == True:
-    net = network.BayesianConvNetwork(inputsize, taskcla, ratio = args.CNN_ratio).cuda()
-    net_old = network.BayesianConvNetwork(inputsize, taskcla, ratio = args.CNN_ratio).cuda()
+    net = network.BayesianConvNetwork(inputsize, taskcla, ratio = args.ratio).cuda()
+    net_old = network.BayesianConvNetwork(inputsize, taskcla, ratio = args.ratio).cuda()
 #     net = network.BayesianConvNetwork(inputsize, taskcla, rho_init=args.rho).cuda()
 #     net_old = network.BayesianConvNetwork(inputsize, taskcla, rho_init=args.rho).cuda()
 
