@@ -52,12 +52,26 @@ class Appr(object):
         self.split = split
         self.beta = args.beta
         
-        self.drop = [20,40,60,75,90]
-        
         self.param_name = []
+        self.prev_std = {}
+        self.std_init = {}
+        self.lr_scale = {}
+        
+        for (n, p) in self.model.named_parameters():
+            self.param_name.append(n)
+            self.lr_scale[n] = 1
+            if 'rho' in n:
+                self.std_init[n] = self.prev_std[n] =  torch.log1p(torch.exp(p.data))
+        
+#         for (n, layer) in self.model.named_children():
+#             if isinstance(layer, BayesianLinear)==False and isinstance(layer, BayesianConv2D)==False:
+#                 continue
+            
+#             self.std_init[n] = self.prev_std[n] = torch.log1p(torch.exp(layer.weight_rho.data))
+            
         
         for (name, p) in self.model.named_parameters():
-            self.param_name.append(name)
+            print(name)
         
         self.optimizer = self._get_optimizer()
 #         Adam(self.model.parameters(), lr=lr, lr_rho=lr_rho, param_name = self.param_name)
@@ -72,7 +86,7 @@ class Appr(object):
     def _get_optimizer(self, lr=None, lr_rho = None):
         if lr is None: lr = self.lr
         if lr_rho is None: lr_rho = self.lr_rho
-        return Adam(self.model.parameters(), lr=lr, lr_rho=lr_rho, param_name = self.param_name)
+        return Adam(self.model.parameters(), lr=lr, lr_rho=lr_rho, param_name = self.param_name, lr_scale = self.lr_scale)
 #         return torch.optim.Adam(self.model.parameters(), lr=lr)
     
     def train(self, t, xtrain, ytrain, xvalid, yvalid, data, input_size, taskcla):
@@ -127,18 +141,12 @@ class Appr(object):
                     xvalid_t=data[task]['valid']['x'].cuda()
                 
                 yvalid_t=data[task]['valid']['y'].cuda()
-                    
+
                 valid_loss_t, valid_acc_t = self.eval(task, xvalid_t, yvalid_t)
                 self.logger.add(epoch=(t * self.nepochs) + e, task_num=task + 1, valid_loss=valid_loss_t,
                                 valid_acc=valid_acc_t)
 
             # Adapt lr
-            
-#             if e+1 in self.drop :
-#                 lr /= self.lr_factor
-#                 lr_rho /= self.lr_factor
-#                 print(' lr={:.1e}'.format(lr), end='')
-#                 self.optimizer = self._get_optimizer(lr, lr_rho)
             
             if valid_loss < best_loss:
                 best_loss = valid_loss
@@ -168,7 +176,15 @@ class Appr(object):
         utils.set_model_(self.model, best_model)
         self.model_old = deepcopy(self.model)
         self.saved = 1
-
+        
+        # learning rate scale update
+        
+        for (n, p) in self.model.named_parameters():
+            if 'rho' in n:
+                self.prev_std[n] = torch.log1p(torch.exp(p.data))
+        
+        
+        self.update_lr_scale()
         self.logger.save()
 
         return
@@ -201,11 +217,16 @@ class Appr(object):
             else:
                 output = self.model(images, sample=True)
             loss = F.nll_loss(output, targets, reduction='sum')
-            loss = self.custom_regularization(self.model_old, self.model, mini_batch_size, loss)
+            loss = self.custom_regularization(loss)
             # Backward
             self.optimizer.zero_grad()
             loss.backward()
+            
+            # manipulate gradients
 #             torch.nn.utils.clip_grad_norm(self.model.parameters(),self.clipgrad)
+#             if t > 0:
+#                 self.restrict_gradient()
+            
             self.optimizer.step()
 
         return
@@ -262,104 +283,130 @@ class Appr(object):
 
 # custom regularization
 
-    def custom_regularization(self, saver_net, trainer_net, mini_batch_size, loss=None):
+    def custom_regularization(self, loss=None):
         
         sigma_weight_reg_sum = 0
-        sigma_bias_reg_sum = 0
-        sigma_weight_normal_reg_sum = 0
-        sigma_bias_normal_reg_sum = 0
-        mu_weight_reg_sum = 0
-        mu_bias_reg_sum = 0
-        L1_mu_weight_reg_sum = 0
-        L1_mu_bias_reg_sum = 0
+        sigma_weight_init_reg_sum = 0
         
-        out_features_max = 512
-        alpha = args.alpha
-#         alpha = 0.01
-#         if args.conv_net:
-#             alpha = 1
-        if self.saved:
-            alpha = 1
+        alpha = 1
+#         for (n,p) in self.model.named_parameters():
+#             if 'rho' in n:
+#                 sigma = torch.log1p(torch.exp(p))
+#                 weight_sigma = (sigma**2 / self.prev_std[n]**2)
+#                 init_weight_sigma = (sigma**2 / self.std_init[n]**2)
+                
+#                 sigma_weight_reg_sum = sigma_weight_reg_sum + (weight_sigma - torch.log(weight_sigma)).sum()
+#                 sigma_weight_init_reg_sum = sigma_weight_init_reg_sum + (init_weight_sigma - torch.log(init_weight_sigma)).sum()
+            
         
-        if args.conv_net:
-            prev_weight_strength = nn.Parameter(torch.Tensor(3,1,1,1).uniform_(0,0))
-
-        else:
-            prev_weight_strength = nn.Parameter(torch.Tensor(28*28,1).uniform_(0,0))
-        
-        for (_, saver_layer), (_, trainer_layer) in zip(saver_net.named_children(), trainer_net.named_children()):
-            if isinstance(trainer_layer, BayesianLinear)==False and isinstance(trainer_layer, BayesianConv2D)==False:
+        for (n, layer) in self.model.named_children():
+            if isinstance(layer, BayesianLinear)==False and isinstance(layer, BayesianConv2D)==False:
                 continue
-            # calculate mu regularization
-            trainer_weight_mu = trainer_layer.weight_mu
-            saver_weight_mu = saver_layer.weight_mu
-            trainer_bias = trainer_layer.bias
-            saver_bias = saver_layer.bias
+            # calculate sigma regularization
             
-            fan_in, fan_out = _calculate_fan_in_and_fan_out(trainer_weight_mu)
-            
-            trainer_weight_sigma = torch.log1p(torch.exp(trainer_layer.weight_rho))
-            saver_weight_sigma = torch.log1p(torch.exp(saver_layer.weight_rho))
-            
-            if isinstance(trainer_layer, BayesianLinear):
-                std_init = math.sqrt((2 / fan_in) * args.ratio)
-            if isinstance(trainer_layer, BayesianConv2D):
-                std_init = math.sqrt((2 / fan_out) * args.ratio)
-#             std_init = np.log(1+np.exp(args.rho))
-            
-            saver_weight_strength = (std_init / saver_weight_sigma)
-
-            if len(saver_weight_mu.shape) == 4:
-                out_features, in_features, _, _ = saver_weight_mu.shape
-                curr_strength = saver_weight_strength.expand(out_features,in_features,1,1)
-                prev_strength = prev_weight_strength.permute(1,0,2,3).expand(out_features,in_features,1,1)
-            
-            else:
-                out_features, in_features = saver_weight_mu.shape
-                curr_strength = saver_weight_strength.expand(out_features,in_features)
-                if len(prev_weight_strength.shape) == 4:
-                    feature_size = in_features // (prev_weight_strength.shape[0])
-                    prev_weight_strength = prev_weight_strength.reshape(prev_weight_strength.shape[0],-1)
-                    prev_weight_strength = prev_weight_strength.expand(prev_weight_strength.shape[0], feature_size)
-                    prev_weight_strength = prev_weight_strength.reshape(-1,1)
-                prev_strength = prev_weight_strength.permute(1,0).expand(out_features,in_features)
-            
-            L2_strength = torch.max(curr_strength, prev_strength)
-            bias_strength = torch.squeeze(saver_weight_strength)
-            
-            L1_sigma = saver_weight_sigma
-            bias_sigma = torch.squeeze(saver_weight_sigma)
-            
-            prev_weight_strength = saver_weight_strength
-            
-            mu_weight_reg = (L2_strength * (trainer_weight_mu-saver_weight_mu)).norm(2)**2
-            mu_bias_reg = (bias_strength * (trainer_bias-saver_bias)).norm(2)**2
-            
-            L1_mu_weight_reg = (torch.div(saver_weight_mu**2,L1_sigma**2)*(trainer_weight_mu - saver_weight_mu)).norm(1)
-            L1_mu_bias_reg = (torch.div(saver_bias**2,bias_sigma**2)*(trainer_bias - saver_bias)).norm(1)
-            
-            L1_mu_weight_reg = L1_mu_weight_reg * (std_init ** 2)
-            L1_mu_bias_reg = L1_mu_bias_reg * (std_init ** 2)
+            trainer_weight_sigma = torch.log1p(torch.exp(layer.weight_rho))
+            saver_weight_sigma = self.prev_std[n + '.weight_rho']
             
             weight_sigma = (trainer_weight_sigma**2 / saver_weight_sigma**2)
             
-            normal_weight_sigma = trainer_weight_sigma**2
+            init_weight_sigma = (trainer_weight_sigma**2 / self.std_init[n + '.weight_rho']**2)
             
             sigma_weight_reg_sum = sigma_weight_reg_sum + (weight_sigma - torch.log(weight_sigma)).sum()
-            sigma_weight_normal_reg_sum = sigma_weight_normal_reg_sum + (normal_weight_sigma - torch.log(normal_weight_sigma)).sum()
-            
-            mu_weight_reg_sum = mu_weight_reg_sum + mu_weight_reg
-            mu_bias_reg_sum = mu_bias_reg_sum + mu_bias_reg
-            L1_mu_weight_reg_sum = L1_mu_weight_reg_sum + L1_mu_weight_reg
-            L1_mu_bias_reg_sum = L1_mu_bias_reg_sum + L1_mu_bias_reg
+            sigma_weight_init_reg_sum = sigma_weight_init_reg_sum + (init_weight_sigma - torch.log(init_weight_sigma)).sum()
             
         # elbo loss
-        loss = loss / mini_batch_size
-        # L2 loss
-        loss = loss + alpha * (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
-        # L1 loss
-        loss = loss + self.saved * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
+        loss = loss / self.sbatch
         # sigma regularization
-        loss = loss + self.beta * (sigma_weight_reg_sum + sigma_weight_normal_reg_sum) / (2 * mini_batch_size)
+#         loss = loss + self.beta * (self.saved * sigma_weight_reg_sum + sigma_weight_init_reg_sum) / (2 * self.sbatch)
+        loss = loss + self.beta * (sigma_weight_reg_sum) / (2 * self.sbatch)
             
         return loss
+    
+    def restrict_gradient(self):
+        if args.conv_net:
+            in_lr_strength = nn.Parameter(torch.Tensor(3,1,1,1).uniform(1))
+        else:
+            in_lr_strength = nn.Parameter(torch.Tensor(28*28,1).uniform_(1,1))
+        
+        for (n,layer) in self.model.named_children():
+            if isinstance(layer, BayesianLinear)==False and isinstance(layer, BayesianConv2D)==False:
+                continue
+            
+            out_lr_strength = (self.prev_std[n] / self.std_init[n]) ** 2
+            
+            if len(layer.weight_mu.shape) == 4:
+                out_features, in_features, _, _ = layer.weight_mu.shape
+                out_strength = out_lr_strength.expand(out_features,in_features,1,1)
+                in_strength = in_lr_strength.permute(1,0).expand(out_features,in_features)
+            else:
+                out_features, in_features = layer.weight_mu.shape
+                out_strength = out_lr_strength.expand(out_features,in_features)
+                if len(in_lr_strength.shape) == 4:
+                    feature_size = in_features // (in_strength.shape[0])
+                    in_lr_strength = in_lr_strength.reshape(in_strength.shape[0],-1)
+                    in_lr_strength = in_lr_strength.expand(in_strength.shape[0], feature_size)
+                    in_lr_strength = in_lr_strength.reshape(-1,1)
+                in_strength = in_lr_strength.permute(1,0).expand(out_features,in_features)
+            
+            strength = torch.min(out_strength, in_strength)
+            in_lr_strength = out_lr_strength
+            
+            layer.weight_mu.grad.data.mul_(strength)
+        
+    def update_lr_scale(self):
+        if args.conv_net:
+            in_lr_strength = nn.Parameter(torch.Tensor(3,1,1,1).uniform(1))
+        else:
+            in_lr_strength = nn.Parameter(torch.Tensor(28*28,1).uniform_(1,1))
+        
+        for (n, layer) in self.model.named_children():
+            if isinstance(layer, BayesianLinear)==False and isinstance(layer, BayesianConv2D)==False:
+                continue
+            out_lr_strength = (self.prev_std[n + '.weight_rho'] / self.std_init[n + '.weight_rho']) ** 2
+
+            if len(layer.weight_mu.shape) == 4:
+                out_features, in_features, _, _ = layer.weight_mu.shape
+                out_strength = out_lr_strength.expand(out_features,in_features,1,1)
+                in_strength = in_lr_strength.permute(1,0).expand(out_features,in_features)
+            else:
+                out_features, in_features = layer.weight_mu.shape
+                out_strength = out_lr_strength.expand(out_features,in_features)
+                if len(in_lr_strength.shape) == 4:
+                    feature_size = in_features // (in_strength.shape[0])
+                    in_lr_strength = in_lr_strength.reshape(in_strength.shape[0],-1)
+                    in_lr_strength = in_lr_strength.expand(in_strength.shape[0], feature_size)
+                    in_lr_strength = in_lr_strength.reshape(-1,1)
+                in_strength = in_lr_strength.permute(1,0).expand(out_features,in_features)
+            
+            strength = torch.min(out_strength, in_strength)
+            in_lr_strength = out_lr_strength
+            
+            self.lr_scale[n + '.weight_mu'] = strength
+        
+#         for n,p in self.model.named_parameters():
+#             if 'rho' in n or 'last' in n:
+#                 continue
+#             if p.requires_grad:
+#                 if p.grad is not None:
+#                     out_strength = (self.prev_std[n] / self.std_init[n]) ** 2
+
+#                     if len(p.shape) == 4:
+#                         out_features, in_features, _, _ = saver_weight_mu.shape
+#                         out_strength = out_strength.expand(out_features,in_features,1,1)
+#                         in_strength = in_strength.permute(1,0).expand(out_features,in_features)
+
+#                     else:
+#                         out_features, in_features = saver_weight_mu.shape
+#                         out_strength = out_strength.expand(out_features,in_features)
+#                         if len(in_strength.shape) == 4:
+#                             feature_size = in_features // (in_strength.shape[0])
+#                             in_strength = in_strength.reshape(in_strength.shape[0],-1)
+#                             in_strength = in_strength.expand(in_strength.shape[0], feature_size)
+#                             in_strength = in_strength.reshape(-1,1)
+#                         in_strength = in_strength.permute(1,0).expand(out_features,in_features)
+
+#                     strength = torch.max(out_strength, in_strength)
+                    
+#                     in_strength = out_strength
+                    
+#                     self.lr_scale[n] = strength

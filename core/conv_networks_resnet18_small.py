@@ -131,23 +131,23 @@ class BayesianConvNetwork(nn.Module):
         self.ratio = ratio
         self.taskcla = taskcla
         
-        self.inplanes = 64
+        self.inplanes = 32
         self.blocks = 2
         
         self.conv1 = BayesianConv2D(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(BasicBlock, 64, self.blocks)
-        self.layer2 = self._make_layer(BasicBlock, 128, self.blocks, stride=2)
-        self.layer3 = self._make_layer(BasicBlock, 256, self.blocks, stride=2)
-        self.layer4 = self._make_layer(BasicBlock, 512, self.blocks, stride=2)
+        self.layer1 = self._make_layer(BasicBlock, 32, self.blocks)
+        self.layer2 = self._make_layer(BasicBlock, 64, self.blocks, stride=2)
+        self.layer3 = self._make_layer(BasicBlock, 128, self.blocks, stride=2)
+        self.layer4 = self._make_layer(BasicBlock, 256, self.blocks, stride=2)
         
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.last=torch.nn.ModuleList()
         
         for t,n in self.taskcla:
-            self.last.append(torch.nn.Linear(512,n))
+            self.last.append(torch.nn.Linear(256,n))
         self.relu = torch.nn.ReLU()
 
     def _make_layer(self, block, planes, blocks, stride=1, dilate=False):

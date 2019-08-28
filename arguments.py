@@ -48,17 +48,24 @@ def get_args():
                                  'hat', 
                                  'hat-test'], 
                         help='(default=%(default)s)')
+    parser.add_argument('--optimizer', default='Adam', type=str, required=False,
+                        choices=['SGD', 
+                                 'SGD_momentum_decay', 
+                                 'Adam'], 
+                        help='(default=%(default)s)')
     parser.add_argument('--output', default='', type=str, required=False, help='(default=%(default)s)')
     parser.add_argument('--nepochs', default=100, type=int, required=False, help='(default=%(default)d)')
     parser.add_argument('--unitN', default=400, type=int, required=False, help='(default=%(default)d)')
     parser.add_argument('--batch-size', default=256, type=int, required=False, help='(default=%(default)d)')
     parser.add_argument('--lr', default=0.001, type=float, required=False, help='(default=%(default)f)')
-    parser.add_argument('--lr_rho', default=0.001, type=float, required=False, help='(default=%(default)f)')
+    parser.add_argument('--lr_rho', default=0.005, type=float, required=False, help='(default=%(default)f)')
+    parser.add_argument('--ratio', default='0.25', type=float, help='(default=%(default)f)')
+    parser.add_argument('--alpha', default=0.3, type=float, help='(default=%(default)f)')
+    parser.add_argument('--beta', default='0.03', type=float, help='(default=%(default)f)')
+    parser.add_argument('--gamma', default=0.75, type=float, help='(default=%(default)f)')
+    parser.add_argument('--smax', default=400, type=float, help='(default=%(default)f)')
     parser.add_argument('--lamb', default='1', type=float, help='(default=%(default)f)')
     parser.add_argument('--c', default='0.9', type=float, help='(default=%(default)f)')
-    parser.add_argument('--ratio', default='0.25', type=float, help='(default=%(default)f)')
-    parser.add_argument('--beta', default='0.03', type=float, help='(default=%(default)f)')
-    parser.add_argument('--alpha', default='1', type=float, help='(default=%(default)f)')
     parser.add_argument('--date', type=str, default='', help='(default=%(default)s)')
     parser.add_argument('--tasknum', default=10, type=int, help='(default=%(default)s)')
     parser.add_argument('--conv-net', action='store_true', default=False, help='Using convolution network')

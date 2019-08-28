@@ -15,20 +15,16 @@ tstart = time.time()
 args = get_args()
 args_std = np.log(1+np.exp(args.rho))
 if args.approach == 'si':
-    log_name = '{}_{}_{}_{}_c_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, args.approach,args.seed, 
-                                                                    args.c, args.unitN, args.batch_size, args.nepochs)
+    log_name = '{}_{}_{}_{}_c_{}_lr_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, args.approach,args.seed, 
+                                                                    args.c, args.lr, args.unitN, args.batch_size, args.nepochs)
 elif args.approach == 'ewc' or args.approach == 'rwalk' or args.approach == 'mas':
-    log_name = '{}_{}_{}_{}_lamb_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, args.approach,args.seed,
-                                                                       args.lamb, args.unitN, args.batch_size, args.nepochs)
-elif args.approach == 'baye':
-    log_name = '{}_{}_{}_{}_beta_{:.7f}_ratio_{:.7f}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
+    log_name = '{}_{}_{}_{}_lamb_{}_lr_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, args.approach,args.seed,
+                                                                       args.lamb, args.lr, args.unitN, 
+                                                                             args.batch_size, args.nepochs)
+elif args.approach == 'baye' or args.approach == 'baye_hat':
+    log_name = '{}_{}_{}_{}_beta_{:.5f}_ratio_{:.4f}_lr_{}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
         args.date, args.experiment, args.approach, args.seed, args.beta, args.ratio, 
-        args.lr_rho, args.unitN, args.batch_size, args.nepochs)
-
-# elif args.approach == 'baye':
-#     log_name = '{}_{}_{}_{}_beta_{:.7f}_ratio_{:.7f}_alpha_{:.2f}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
-#         args.date, args.experiment, args.approach, args.seed, args.beta, args.ratio, args.alpha, 
-#         args.lr_rho, args.unitN, args.batch_size, args.nepochs)
+        args.lr, args.lr_rho, args.unitN, args.batch_size, args.nepochs)
 
 # elif args.approach == 'baye':
 #     log_name = '{}_{}_{}_{}_beta_{:.7f}_std_{:.3f}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
@@ -37,8 +33,10 @@ elif args.approach == 'baye':
 #         args.nepochs)
 
 elif args.approach == 'hat':
-    log_name = '{}_{}_{}_{}_alpha_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, args.approach, args.seed,
-                                                                       args.alpha, args.unitN, args.batch_size, args.nepochs)
+    log_name = '{}_{}_{}_{}_alpha_{}_lr_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, 
+                                                                              args.approach, args.seed,
+                                                                              args.alpha, args.lr, args.unitN, 
+                                                                              args.batch_size, args.nepochs)
 
 if args.conv_net:
     log_name = log_name + '_conv'
@@ -68,7 +66,8 @@ split_experiment = ['split_mnist',
                     'split_CUB200',
                     'split_tiny_imagenet',
                     'split_mini_imagenet', 
-                    'split_omniglot']
+                    'split_omniglot',
+                    'mixture']
 if args.experiment in split_experiment:
     split = True
 if args.experiment == 'split_notmnist':
@@ -115,10 +114,10 @@ elif args.experiment == 'mixture':
 # Args -- Approach
 if args.approach == 'random':
     from approaches import random as approach
-elif args.approach == 'baye':
-    from core import baye as approach
+elif args.approach == 'ucl':
+    from approaches import ucl as approach
 elif args.approach == 'baye_hat':
-    from core import baye as approach
+    from core import baye_hat as approach
 elif args.approach == 'baye_fisher':
     from core import baye_fisher as approach
 elif args.approach == 'sgd':
@@ -161,30 +160,30 @@ elif args.approach == 'joint':
     from approaches import joint as approach
 
 # Args -- Network
-if args.approach == 'hat' or args.approach == 'hat-test':
-    if args.conv_net:
-        from core import conv_net_hat as network
+
+if args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100' or args.experiment == 'split_cifar10' or args.experiment == 'split_cifar100_20':
+    if args.approach == 'hat' or args.approach == 'hat-test':
+        from networks import conv_net_hat as network
+    elif args.approach == 'ucl' or args.approach == 'baye_hat':
+        from networks import conv_net_ucl as network
     else:
-        from networks import mlp_hat as network
-elif args.approach == 'baye':
-    if args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100' or args.experiment == 'split_cifar10' or args.experiment == 'split_cifar100_20':
-        from core import conv_networks as network
-    elif args.experiment == 'mixture' or args.experiment == 'split_mini_imagenet' or args.experiment == 'split_tiny_imagenet' or args.experiment == 'split_CUB200':
-        from core import conv_networks_resnet18 as network
-    elif args.experiment == 'split_omniglot':
-        from core import conv_networks_omniglot as network
-    else:
-        from core import networks as network
-else:
-    if args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100' or args.experiment == 'split_cifar10' or args.experiment == 'split_cifar100_20':
         from networks import conv_net as network
-    elif args.experiment == 'mixture' or args.experiment == 'split_mini_imagenet' or args.experiment == 'split_tiny_imagenet' or args.experiment == 'split_CUB200':
-        from networks import conv_net_resnet18 as network
-    elif args.experiment == 'split_omniglot':
-        from networks import conv_net_omniglot as network
+
+elif args.experiment == 'mixture' or args.experiment == 'split_mini_imagenet' or args.experiment == 'split_tiny_imagenet' or args.experiment == 'split_CUB200':
+    if args.approach == 'hat' or args.approach == 'hat-test':
+        from networks import alexnet_hat as network
+    elif args.approach == 'ucl' or args.approach == 'baye_hat':
+        from networks import alexnet_ucl as network
+    else:
+        from networks import alexnet as network
+else:
+    if args.approach == 'hat' or args.approach == 'hat-test':
+        from networks import mlp_hat as network
+    elif args.approach == 'ucl' or args.approach == 'baye_hat':
+        from networks import mlp_ucl as network
     else:
         from networks import mlp as network
-
+    
 
 ########################################################################################################################
 
@@ -197,18 +196,21 @@ print('Input size =', inputsize, '\nTask info =', taskcla)
 print('Inits...')
 # print (inputsize,taskcla)
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
-if args.approach == 'baye' and args.conv_net == False:
-    net = network.BayesianNetwork(inputsize, taskcla,unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
-    net_old = network.BayesianNetwork(inputsize, taskcla,unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
-    appr = approach.Appr(net, net_old, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
+if args.approach == 'baye' or args.approach == 'baye_hat':
+    if args.conv_net == False:
+        net = network.BayesianNetwork(inputsize, taskcla,unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
+        net_old = network.BayesianNetwork(inputsize, taskcla,unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
+        appr = approach.Appr(net, net_old, sbatch=args.batch_size, nepochs=args.nepochs,
+                             args=args, log_name=log_name, split=split)
 
-elif args.approach == 'baye' and args.conv_net == True:
-    net = network.BayesianConvNetwork(inputsize, taskcla, ratio = args.ratio).cuda()
-    net_old = network.BayesianConvNetwork(inputsize, taskcla, ratio = args.ratio).cuda()
-#     net = network.BayesianConvNetwork(inputsize, taskcla, rho_init=args.rho).cuda()
-#     net_old = network.BayesianConvNetwork(inputsize, taskcla, rho_init=args.rho).cuda()
+    else:
+        net = network.BayesianConvNetwork(inputsize, taskcla, ratio = args.ratio).cuda()
+        net_old = network.BayesianConvNetwork(inputsize, taskcla, ratio = args.ratio).cuda()
+    #     net = network.BayesianConvNetwork(inputsize, taskcla, rho_init=args.rho).cuda()
+    #     net_old = network.BayesianConvNetwork(inputsize, taskcla, rho_init=args.rho).cuda()
 
-    appr = approach.Appr(net, net_old, sbatch=args.batch_size, lr=args.lr, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
+        appr = approach.Appr(net, net_old, sbatch=args.batch_size, lr=args.lr, nepochs=args.nepochs, args=args,
+                             log_name=log_name, split=split)
     
 else:
     if args.conv_net == False:
@@ -218,7 +220,8 @@ else:
     else:
         net = network.Net(inputsize, taskcla).cuda()
         net_old = network.Net(inputsize, taskcla).cuda()
-        appr = approach.Appr(net, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
+        appr = approach.Appr(net, sbatch=args.batch_size, lr=args.lr, nepochs=args.nepochs, args=args,
+                             log_name=log_name, split=split)
 
     
 utils.print_model_report(net)

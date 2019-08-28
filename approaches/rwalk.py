@@ -43,7 +43,7 @@ class Appr(object):
         self.ce=torch.nn.CrossEntropyLoss()
         self.optimizer=self._get_optimizer()
         self.lamb=args.lamb
-        self.alpha = 0.5
+        self.alpha = 0.9
         if len(args.parameter)>=1:
             params=args.parameter.split(',')
             print('Setting parameters to',params)
@@ -56,6 +56,7 @@ class Appr(object):
         self.p_old = {}
         
         self.eps = 0.01
+        
         
         for n, p in self.model.named_parameters():
             if p.requires_grad:
@@ -70,8 +71,10 @@ class Appr(object):
 
     def _get_optimizer(self,lr=None):
         if lr is None: lr=self.lr
-#         return torch.optim.SGD(self.model.parameters(),lr=lr)
-        return torch.optim.Adam(self.model.parameters(), lr=lr)
+        if args.optimizer == 'SGD':
+            return torch.optim.SGD(self.model.parameters(),lr=lr)
+        if args.optimizer == 'Adam':
+            return torch.optim.Adam(self.model.parameters(), lr=lr)
 
     def train(self, t, xtrain, ytrain, xvalid, yvalid, data, input_size, taskcla):
         best_loss = np.inf
@@ -135,6 +138,7 @@ class Appr(object):
                     print(' lr={:.1e}'.format(lr), end='')
                     if lr < self.lr_min:
                         print()
+                        break
                         if args.conv_net:
                             pass
 #                             break
@@ -151,12 +155,14 @@ class Appr(object):
         self.model_old = deepcopy(self.model)
         utils.freeze_model(self.model_old) # Freeze the weights
 
+        
         # Update fisher & s
-        if t>0:
-            for n,_ in self.model.named_parameters():
-                self.fisher[n] = self.fisher_running[n].clone()
-                self.s[n] = (1/2) * self.s_running[n].clone()
-                self.s_running[n] = self.s[n].clone()
+        for n,p in self.model.named_parameters():
+            if p.requires_grad:
+                if p.grad is not None:
+                    self.fisher[n] = self.fisher_running[n].clone()
+                    self.s[n] = (1/2) * self.s_running[n].clone()
+                    self.s_running[n] = self.s[n].clone()
 
         return
 
@@ -169,8 +175,6 @@ class Appr(object):
 
         # Loop batches
         for i in range(0,len(r),self.sbatch):
-            if t==2:
-                print("iteration %d"%i)
             if i+self.sbatch<=len(r): b=r[i:i+self.sbatch]
             else: b=r[i:]
             images=x[b]
@@ -189,6 +193,7 @@ class Appr(object):
             # Backward
             self.optimizer.zero_grad()
             loss.backward()
+            torch.nn.utils.clip_grad_norm(self.model.parameters(),self.clipgrad)
             self.optimizer.step()
             
             # Compute Fisher & s
@@ -252,7 +257,7 @@ class Appr(object):
 
                     # Compute running s
                     loss_diff = -p.grad * (p.detach() - self.p_old[n])
-                    fisher_distance = (1/2) * (self.fisher_running[n]*(p.detach() - self.p_old[n]))**2
+                    fisher_distance = (1/2) * (self.fisher_running[n]*(p.detach() - self.p_old[n])**2)
                     s = loss_diff /(fisher_distance+self.eps)
                     self.s_running[n] = self.s_running[n] + s
 

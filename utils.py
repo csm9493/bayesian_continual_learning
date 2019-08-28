@@ -46,7 +46,7 @@ class Adam(Optimizer):
     """
 
     def __init__(self, params, lr=1e-3, lr_rho=1e-3, betas=(0.9, 0.999), eps=1e-8,
-                 weight_decay=0, amsgrad=False, param_name=None):
+                 weight_decay=0, amsgrad=False, param_name=None, lr_scale=None):
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if not 0.0 <= eps:
@@ -59,6 +59,7 @@ class Adam(Optimizer):
                         weight_decay=weight_decay, amsgrad=amsgrad)
         self.param_name = param_name
         self.lr_rho = lr_rho
+        self.lr_scale = lr_scale
         super(Adam, self).__init__(params, defaults)
 
     def __setstate__(self, state):
@@ -123,12 +124,15 @@ class Adam(Optimizer):
                 bias_correction1 = 1 - beta1 ** state['step']
                 bias_correction2 = 1 - beta2 ** state['step']
                 
+                n = self.param_name[i]
+                
                 if 'rho' in self.param_name[i]:
                     step_size = self.lr_rho * math.sqrt(bias_correction2) / bias_correction1
                 else:
                     step_size = group['lr'] * math.sqrt(bias_correction2) / bias_correction1
 
-                p.data.addcdiv_(-step_size, exp_avg, denom)
+                p.data.addcdiv_(-step_size, self.lr_scale[n] * exp_avg, denom)
+#                 p.data.addcdiv_(-step_size, exp_avg, denom)
 
         return loss
 

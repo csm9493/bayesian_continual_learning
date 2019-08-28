@@ -72,7 +72,10 @@ class Appr(object):
     def _get_optimizer(self, lr=None, lr_rho = None):
         if lr is None: lr = self.lr
         if lr_rho is None: lr_rho = self.lr_rho
-        return Adam(self.model.parameters(), lr=lr, lr_rho=lr_rho, param_name = self.param_name)
+        if args.optimizer == 'Adam':
+            return Adam(self.model.parameters(), lr=lr, lr_rho=lr_rho, param_name = self.param_name)
+        if args.optimizer == 'SGD':
+            return torch.optim.SGD(self.model.parameters(),lr=lr)
 #         return torch.optim.Adam(self.model.parameters(), lr=lr)
     
     def train(self, t, xtrain, ytrain, xvalid, yvalid, data, input_size, taskcla):
@@ -363,3 +366,4 @@ class Appr(object):
         loss = loss + self.beta * (sigma_weight_reg_sum + sigma_weight_normal_reg_sum) / (2 * mini_batch_size)
             
         return loss
+

@@ -9,7 +9,7 @@ from bayes_layer import BayesianLinear
 def compute_conv_output_size(Lin,kernel_size,stride=1,padding=0,dilation=1):
     return int(np.floor((Lin+2*padding-dilation*(kernel_size-1)-1)/float(stride)+1))
 
-class BayesianConvNetwork(nn.Module):
+class Net(nn.Module):
     def __init__(self, inputsize, taskcla, ratio = 0.25):
         super().__init__()
         

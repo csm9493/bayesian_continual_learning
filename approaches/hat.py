@@ -19,7 +19,8 @@ else:
 
 class Appr(object):
 
-    def __init__(self,model,nepochs=100,sbatch=256,lr=0.05,lr_min=1e-4,lr_factor=3,lr_patience=5,clipgrad=10000,lamb=0.75,smax=400,args=None, log_name=None, split=False):
+    def __init__(self,model,nepochs=100,sbatch=256,lr=0.05,lr_min=1e-4,lr_factor=3,
+                 lr_patience=5,clipgrad=10000,lamb=0.75,smax=400,args=None, log_name=None, split=False):
         self.model=model
 
         self.nepochs=nepochs
@@ -36,8 +37,8 @@ class Appr(object):
         self.ce=torch.nn.CrossEntropyLoss()
         self.optimizer=self._get_optimizer()
 
-        self.lamb=args.alpha          # Grid search = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2.5, 4]; chosen was 0.75
-        self.smax=smax          # Grid search = [25, 50, 100, 200, 400, 800]; chosen was 400
+        self.lamb=args.gamma          # Grid search = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2.5, 4]; chosen was 0.75
+        self.smax=args.smax            # Grid search = [25, 50, 100, 200, 400, 800]; chosen was 400
         if len(args.parameter)>=1:
             params=args.parameter.split(',')
             print('Setting parameters to',params)
@@ -51,7 +52,10 @@ class Appr(object):
 
     def _get_optimizer(self,lr=None):
         if lr is None: lr=self.lr
-        return torch.optim.SGD(self.model.parameters(), lr=lr)
+        if args.optimizer == 'SGD':
+            return torch.optim.SGD(self.model.parameters(),lr=lr)
+        if args.optimizer == 'Adam':
+            return torch.optim.Adam(self.model.parameters(), lr=lr)
 
     def train(self,t,xtrain,ytrain,xvalid,yvalid,data,inputsize,taskcla):
         best_loss=np.inf
@@ -99,7 +103,8 @@ class Appr(object):
         utils.set_model_(self.model,best_model)
         self.logger.save()
         # Activations mask
-        task=torch.autograd.Variable(torch.LongTensor([t]).cuda(),volatile=False)
+#         task=torch.autograd.Variable(torch.LongTensor([t]).cuda(),volatile=False)
+        task=torch.autograd.Variable(torch.LongTensor([t]).cuda())
         mask=self.model.mask(task,s=self.smax)
         for i in range(len(mask)):
             mask[i]=torch.autograd.Variable(mask[i].data.clone(),requires_grad=False)
@@ -129,9 +134,12 @@ class Appr(object):
         for i in range(0,len(r),self.sbatch):
             if i+self.sbatch<=len(r): b=r[i:i+self.sbatch]
             else: b=r[i:]
-            images=torch.autograd.Variable(x[b],volatile=False)
-            targets=torch.autograd.Variable(y[b],volatile=False)
-            task=torch.autograd.Variable(torch.LongTensor([t]).cuda(),volatile=False)
+#             images=torch.autograd.Variable(x[b],volatile=False)
+#             targets=torch.autograd.Variable(y[b],volatile=False)
+#             task=torch.autograd.Variable(torch.LongTensor([t]).cuda(),volatile=False)
+            images=torch.autograd.Variable(x[b])
+            targets=torch.autograd.Variable(y[b])
+            task=torch.autograd.Variable(torch.LongTensor([t]).cuda())
             s=(self.smax-1/self.smax)*i/len(r)+1/self.smax
 
             # Forward
@@ -158,7 +166,8 @@ class Appr(object):
                     p.grad.data*=self.smax/s*num/den
 
             # Apply step
-            torch.nn.utils.clip_grad_norm(self.model.parameters(),self.clipgrad)
+            if args.optimizer == 'SGD' or args.optimizer == 'SGD_momentum_decay':
+                torch.nn.utils.clip_grad_norm(self.model.parameters(),self.clipgrad)
             self.optimizer.step()
 
             # Constrain embeddings
@@ -188,9 +197,14 @@ class Appr(object):
         for i in range(0,len(r),self.sbatch):
             if i+self.sbatch<=len(r): b=r[i:i+self.sbatch]
             else: b=r[i:]
-            images=torch.autograd.Variable(x[b],volatile=True)
-            targets=torch.autograd.Variable(y[b],volatile=True)
-            task=torch.autograd.Variable(torch.LongTensor([t]).cuda(),volatile=True)
+#             images=torch.autograd.Variable(x[b],volatile=True)
+#             targets=torch.autograd.Variable(y[b],volatile=True)
+#             task=torch.autograd.Variable(torch.LongTensor([t]).cuda(),volatile=True)
+            images=torch.autograd.Variable(x[b])
+            targets=torch.autograd.Variable(y[b])
+            task=torch.autograd.Variable(torch.LongTensor([t]).cuda())
+
+
 
             # Forward
             output,masks=self.model.forward(task,images,s=self.smax)

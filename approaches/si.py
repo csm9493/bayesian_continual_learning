@@ -24,7 +24,7 @@ feature_extractor = nn.Sequential(*list(resnet_model.children())[:-4])
 class Appr():
     """ Class implementing the Synaptic intelligence approach described in https://arxiv.org/abs/1703.04200 """
 
-    def __init__(self,model,nepochs=100,sbatch=256,lr=0.001,lr_min=2e-6,lr_factor=3,lr_patience=5,clipgrad=100,args=None, log_name=None, split=False):
+    def __init__(self,model,nepochs=100,sbatch=256,lr=0.001,lr_min=1e-6,lr_factor=3,lr_patience=5,clipgrad=100,args=None, log_name=None, split=False):
         super().__init__()
         self.model=model
         self.model_old=model
@@ -63,8 +63,10 @@ class Appr():
 
     def _get_optimizer(self,lr=None):
         if lr is None: lr=self.lr
-#         return torch.optim.SGD(self.model.parameters(),lr=lr)
-        return torch.optim.Adam(self.model.parameters(), lr=lr)
+        if args.optimizer == 'SGD':
+            return torch.optim.SGD(self.model.parameters(),lr=lr)
+        if args.optimizer == 'Adam':
+            return torch.optim.Adam(self.model.parameters(), lr=lr)
 
     def train(self, t, xtrain, ytrain, xvalid, yvalid, data, input_size, taskcla):
         best_loss = np.inf
@@ -133,9 +135,10 @@ class Appr():
                     print(' lr={:.1e}'.format(lr), end='')
                     if lr < self.lr_min:
                         print()
+                        break
                         if args.conv_net:
                             pass
-#                             break
+                            
                     patience = self.lr_patience
                     self.optimizer = self._get_optimizer(lr)
             print()
@@ -178,7 +181,8 @@ class Appr():
             # Backward
             self.optimizer.zero_grad()
             loss.backward()
-#             torch.nn.utils.clip_grad_norm(self.model.parameters(),self.clipgrad)
+            if args.optimizer == 'SGD' or args.optimizer == 'SGD_momentum_decay':
+                torch.nn.utils.clip_grad_norm(self.model.parameters(),self.clipgrad)
             self.optimizer.step()
             for n, p in self.model.named_parameters():
                if p.requires_grad:

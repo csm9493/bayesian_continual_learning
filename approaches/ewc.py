@@ -24,7 +24,7 @@ feature_extractor = nn.Sequential(*list(resnet_model.children())[:-4])
 class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
 
-    def __init__(self,model,nepochs=100,sbatch=256,lr=0.001,lr_min=2e-6,lr_factor=3,lr_patience=5,clipgrad=100,args=None, log_name=None, split=False):
+    def __init__(self,model,nepochs=100,sbatch=256,lr=0.001,lr_min=1e-6,lr_factor=3,lr_patience=5,clipgrad=100,args=None, log_name=None, split=False):
         self.model=model
         self.model_old=model
         self.fisher=None
@@ -53,8 +53,12 @@ class Appr(object):
 
     def _get_optimizer(self,lr=None):
         if lr is None: lr=self.lr
-#         return torch.optim.SGD(self.model.parameters(),lr=lr)
-        return torch.optim.Adam(self.model.parameters(), lr=lr)
+        
+        if args.optimizer == 'SGD':
+            return torch.optim.SGD(self.model.parameters(),lr=lr)
+        if args.optimizer == 'Adam':
+            return torch.optim.Adam(self.model.parameters(), lr=lr)
+#         return torch.optim.SGD(net.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)
 
     def train(self, t, xtrain, ytrain, xvalid, yvalid, data, input_size, taskcla):
         best_loss = np.inf
@@ -110,6 +114,7 @@ class Appr(object):
                 best_model = utils.get_model(self.model)
                 patience = self.lr_patience
                 print(' *', end='')
+            
             else:
                 patience -= 1
                 if patience <= 0:
@@ -117,6 +122,7 @@ class Appr(object):
                     print(' lr={:.1e}'.format(lr), end='')
                     if lr < self.lr_min:
                         print()
+                        break
                         if args.conv_net:
                             pass
 #                             break
@@ -174,7 +180,8 @@ class Appr(object):
             # Backward
             self.optimizer.zero_grad()
             loss.backward()
-#             torch.nn.utils.clip_grad_norm(self.model.parameters(),self.clipgrad)
+            if args.optimizer == 'SGD' or args.optimizer == 'SGD_momentum_decay':
+                torch.nn.utils.clip_grad_norm(self.model.parameters(),self.clipgrad)
             self.optimizer.step()
 
         return
@@ -218,7 +225,6 @@ class Appr(object):
         return total_loss/total_num,total_acc/total_num
 
     def criterion(self,t,output,targets):
-        print(output.shape)
         # Regularization for all previous tasks
         loss_reg=0
         if t>0:
