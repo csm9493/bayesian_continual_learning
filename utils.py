@@ -131,8 +131,8 @@ class Adam(Optimizer):
                 else:
                     step_size = group['lr'] * math.sqrt(bias_correction2) / bias_correction1
 
-                p.data.addcdiv_(-step_size, self.lr_scale[n] * exp_avg, denom)
-#                 p.data.addcdiv_(-step_size, exp_avg, denom)
+#                 p.data.addcdiv_(-step_size, self.lr_scale[n] * exp_avg, denom)
+                p.data.addcdiv_(-step_size, exp_avg, denom)
 
         return loss
 

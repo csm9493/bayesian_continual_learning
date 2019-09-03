@@ -49,3 +49,4 @@ class Net(nn.Module):
             y = F.log_softmax(x, dim=1)
         
         return y
+

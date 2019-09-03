@@ -92,7 +92,8 @@ class Appr(object):
                         if lr<self.lr_min:
                             print()
                             if args.conv_net:
-                                break
+                                pass
+#                                 break
                         patience=self.lr_patience
                         self.optimizer=self._get_optimizer(lr)
                 print()

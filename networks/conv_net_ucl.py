@@ -30,8 +30,8 @@ class Net(nn.Module):
         s = compute_conv_output_size(s,3, padding=1) # 8
         self.conv6 = BayesianConv2D(128,128,kernel_size=3, padding=1, ratio = ratio)
         s = compute_conv_output_size(s,3, padding=1) # 8
-#         self.conv7 = BayesianConv2D(128,128,kernel_size=3, padding=1, ratio = ratio)
-#         s = compute_conv_output_size(s,3, padding=1) # 8
+        self.conv7 = BayesianConv2D(128,128,kernel_size=3, padding=1, ratio = ratio)
+        s = compute_conv_output_size(s,3, padding=1) # 8
         s = s//2 # 4
         self.fc1 = BayesianLinear(s*s*128,256, ratio = ratio)
         self.drop1 = nn.Dropout(0.25)
@@ -53,7 +53,7 @@ class Net(nn.Module):
         h=self.drop1(self.MaxPool(h))
         h=self.relu(self.conv5(h,sample))
         h=self.relu(self.conv6(h,sample))
-#         h=self.relu(self.conv7(h,sample))
+        h=self.relu(self.conv7(h,sample))
         h=self.drop1(self.MaxPool(h))
         h=h.view(x.shape[0],-1)
         h = self.drop2(self.relu(self.fc1(h,sample)))

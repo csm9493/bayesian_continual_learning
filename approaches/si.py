@@ -135,7 +135,6 @@ class Appr():
                     print(' lr={:.1e}'.format(lr), end='')
                     if lr < self.lr_min:
                         print()
-                        break
                         if args.conv_net:
                             pass
                             

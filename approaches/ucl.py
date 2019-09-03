@@ -16,11 +16,7 @@ from arguments import get_args
 
 args = get_args()
 
-from core.networks import BayesianNetwork as Net
-from bayes_layer import BayesianLinear 
-from core.conv_networks import BayesianConvNetwork as ConvNet
-from bayes_layer import BayesianConv2D 
-from bayes_layer import _calculate_fan_in_and_fan_out
+from bayes_layer import BayesianLinear, BayesianConv2D, _calculate_fan_in_and_fan_out
 
 resnet_model = models.resnet18(pretrained=True).cuda()
 feature_extractor = nn.Sequential(*list(resnet_model.children())[:-4])
@@ -28,11 +24,11 @@ feature_extractor = nn.Sequential(*list(resnet_model.children())[:-4])
 class Appr(object):
     
 
-    def __init__(self, model, model_old, nepochs=100, sbatch=256, lr=0.001, 
+    def __init__(self, model, nepochs=100, sbatch=256, lr=0.001, 
                  lr_min=2e-6, lr_factor=3, lr_patience=5, clipgrad=100, args=None, log_name=None, split=False):
 
         self.model = model
-        self.model_old = model_old
+        self.model_old = deepcopy(self.model)
         
         file_name = log_name
         self.logger = utils.logger(file_name=file_name, resume=False, path='./result_data/csvdata/', data_format='csv')
@@ -208,7 +204,8 @@ class Appr(object):
             # Backward
             self.optimizer.zero_grad()
             loss.backward()
-#             torch.nn.utils.clip_grad_norm(self.model.parameters(),self.clipgrad)
+            if args.optimizer == 'SGD' or args.optimizer == 'SGD_momentum_decay':
+                torch.nn.utils.clip_grad_norm(self.model.parameters(),self.clipgrad)
             self.optimizer.step()
 
         return

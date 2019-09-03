@@ -36,7 +36,7 @@ def get_args():
                                  'si', 
                                  'rwalk', 
                                  'mas', 
-                                 'baye', 
+                                 'ucl', 
                                  'baye_fisher',
                                  'baye_hat', 
                                  'imm-mean', 

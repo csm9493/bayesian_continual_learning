@@ -21,28 +21,16 @@ elif args.approach == 'ewc' or args.approach == 'rwalk' or args.approach == 'mas
     log_name = '{}_{}_{}_{}_lamb_{}_lr_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, args.approach,args.seed,
                                                                        args.lamb, args.lr, args.unitN, 
                                                                              args.batch_size, args.nepochs)
-elif args.approach == 'baye' or args.approach == 'baye_hat':
-    log_name = '{}_{}_{}_{}_beta_{:.5f}_ratio_{:.4f}_lr_{}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
-        args.date, args.experiment, args.approach, args.seed, args.beta, args.ratio, 
+elif args.approach == 'ucl' or args.approach == 'baye_hat':
+    log_name = '{}_{}_{}_{}_alpha{}_beta_{:.5f}_ratio_{:.4f}_lr_{}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
+        args.date, args.experiment, args.approach, args.seed, args.alpha, args.beta, args.ratio, 
         args.lr, args.lr_rho, args.unitN, args.batch_size, args.nepochs)
 
-# elif args.approach == 'baye':
-#     log_name = '{}_{}_{}_{}_beta_{:.7f}_std_{:.3f}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
-#         args.date, args.experiment, args.approach,args.seed,args.beta, 
-#         args_std,args.lr_rho,args.unitN,args.batch_size,
-#         args.nepochs)
-
 elif args.approach == 'hat':
-    log_name = '{}_{}_{}_{}_alpha_{}_lr_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, 
+    log_name = '{}_{}_{}_{}_alpha_{}_smax_{}_lr_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, 
                                                                               args.approach, args.seed,
-                                                                              args.alpha, args.lr, args.unitN, 
+                                                                              args.alpha, args.smax, args.lr, args.unitN, 
                                                                               args.batch_size, args.nepochs)
-
-if args.conv_net:
-    log_name = log_name + '_conv'
-
-if args.output == '':
-    args.output = './result_data/' + log_name + '.txt'
 
     
 print('=' * 100)
@@ -55,23 +43,46 @@ print('=' * 100)
 # Split
 split = False
 notMNIST = False
-split_experiment = ['split_mnist', 
-                    'split_notmnist', 
-                    'split_cifar10',
-                    'split_cifar100',
-                    'split_cifar100_20',
-                    'split_cifar10_100',
-                    'split_pmnist',
-                    'split_row_pmnist', 
-                    'split_CUB200',
-                    'split_tiny_imagenet',
-                    'split_mini_imagenet', 
-                    'split_omniglot',
-                    'mixture']
+split_experiment = [
+    'split_mnist', 
+    'split_notmnist', 
+    'split_cifar10',
+    'split_cifar100',
+    'split_cifar100_20',
+    'split_cifar10_100',
+    'split_pmnist',
+    'split_row_pmnist', 
+    'split_CUB200',
+    'split_tiny_imagenet',
+    'split_mini_imagenet', 
+    'split_omniglot',
+    'mixture'
+]
+
+conv_experiment = [
+    'split_cifar10',
+    'split_cifar100',
+    'split_cifar100_20',
+    'split_cifar10_100',
+    'split_CUB200',
+    'split_tiny_imagenet',
+    'split_mini_imagenet', 
+    'split_omniglot',
+    'mixture'
+]
+
 if args.experiment in split_experiment:
     split = True
 if args.experiment == 'split_notmnist':
     notMNIST = True
+if args.experiment in conv_experiment:
+    args.conv = True
+    log_name = log_name + '_conv'
+if args.output == '':
+    args.output = './result_data/' + log_name + '.txt'
+
+
+    
     
 # Seed
 np.random.seed(args.seed)
@@ -196,32 +207,16 @@ print('Input size =', inputsize, '\nTask info =', taskcla)
 print('Inits...')
 # print (inputsize,taskcla)
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
-if args.approach == 'baye' or args.approach == 'baye_hat':
-    if args.conv_net == False:
-        net = network.BayesianNetwork(inputsize, taskcla,unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
-        net_old = network.BayesianNetwork(inputsize, taskcla,unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
-        appr = approach.Appr(net, net_old, sbatch=args.batch_size, nepochs=args.nepochs,
-                             args=args, log_name=log_name, split=split)
-
-    else:
-        net = network.BayesianConvNetwork(inputsize, taskcla, ratio = args.ratio).cuda()
-        net_old = network.BayesianConvNetwork(inputsize, taskcla, ratio = args.ratio).cuda()
-    #     net = network.BayesianConvNetwork(inputsize, taskcla, rho_init=args.rho).cuda()
-    #     net_old = network.BayesianConvNetwork(inputsize, taskcla, rho_init=args.rho).cuda()
-
-        appr = approach.Appr(net, net_old, sbatch=args.batch_size, lr=args.lr, nepochs=args.nepochs, args=args,
-                             log_name=log_name, split=split)
-    
+if args.conv_net == False:
+    net = network.Net(inputsize, taskcla, unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
+    net_old = network.Net(inputsize, taskcla, unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
+    appr = approach.Appr(net, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
 else:
-    if args.conv_net == False:
-        net = network.Net(inputsize, taskcla, unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
-        net_old = network.Net(inputsize, taskcla, unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
-        appr = approach.Appr(net, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
-    else:
-        net = network.Net(inputsize, taskcla).cuda()
-        net_old = network.Net(inputsize, taskcla).cuda()
-        appr = approach.Appr(net, sbatch=args.batch_size, lr=args.lr, nepochs=args.nepochs, args=args,
-                             log_name=log_name, split=split)
+    net = network.Net(inputsize, taskcla).cuda()
+    net_old = network.Net(inputsize, taskcla).cuda()
+    appr = approach.Appr(net, sbatch=args.batch_size, lr=args.lr, nepochs=args.nepochs, args=args,
+                         log_name=log_name, split=split)
+    
 
     
 utils.print_model_report(net)
@@ -234,6 +229,9 @@ print('-' * 100)
 acc = np.zeros((len(taskcla), len(taskcla)), dtype=np.float32)
 lss = np.zeros((len(taskcla), len(taskcla)), dtype=np.float32)
 for t, ncla in taskcla:
+    
+    if t == args.tasknum:
+        break
     
     print('*' * 100)
     print('Task {:2d} ({:s})'.format(t, data[t]['name']))
