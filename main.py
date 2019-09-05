@@ -22,7 +22,7 @@ elif args.approach == 'ewc' or args.approach == 'rwalk' or args.approach == 'mas
                                                                        args.lamb, args.lr, args.unitN, 
                                                                              args.batch_size, args.nepochs)
 elif args.approach == 'ucl' or args.approach == 'baye_hat':
-    log_name = '{}_{}_{}_{}_alpha{}_beta_{:.5f}_ratio_{:.4f}_lr_{}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
+    log_name = '{}_{}_{}_{}_alpha_{}_beta_{:.5f}_ratio_{:.4f}_lr_{}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
         args.date, args.experiment, args.approach, args.seed, args.alpha, args.beta, args.ratio, 
         args.lr, args.lr_rho, args.unitN, args.batch_size, args.nepochs)
 
@@ -55,7 +55,7 @@ split_experiment = [
     'split_CUB200',
     'split_tiny_imagenet',
     'split_mini_imagenet', 
-    'split_omniglot',
+    'omniglot',
     'mixture'
 ]
 
@@ -187,6 +187,14 @@ elif args.experiment == 'mixture' or args.experiment == 'split_mini_imagenet' or
         from networks import alexnet_ucl as network
     else:
         from networks import alexnet as network
+
+elif args.experiment == 'omnitlog':
+    if args.approach == 'hat' or args.approach == 'hat-test':
+        from networks import conv_net_omniglot_hat as network
+    elif args.approach == 'ucl' or args.approach == 'baye_hat':
+        from networks import conv_net_omniglot_ucl as network
+    else:
+        from networks import conv_net_omniglot as network
 else:
     if args.approach == 'hat' or args.approach == 'hat-test':
         from networks import mlp_hat as network

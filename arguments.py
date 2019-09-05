@@ -21,7 +21,6 @@ def get_args():
                                  'split_CUB200', 
                                  'split_tiny_imagenet', 
                                  'split_mini_imagenet', 
-                                 'split_omniglot', 
                                  'split_cifar10'], 
                         help='(default=%(default)s)')
     parser.add_argument('--approach', default='', type=str, required=True,
@@ -60,7 +59,7 @@ def get_args():
     parser.add_argument('--lr', default=0.001, type=float, required=False, help='(default=%(default)f)')
     parser.add_argument('--lr_rho', default=0.005, type=float, required=False, help='(default=%(default)f)')
     parser.add_argument('--ratio', default='0.25', type=float, help='(default=%(default)f)')
-    parser.add_argument('--alpha', default=0.3, type=float, help='(default=%(default)f)')
+    parser.add_argument('--alpha', default=0.01, type=float, help='(default=%(default)f)')
     parser.add_argument('--beta', default='0.03', type=float, help='(default=%(default)f)')
     parser.add_argument('--gamma', default=0.75, type=float, help='(default=%(default)f)')
     parser.add_argument('--smax', default=400, type=float, help='(default=%(default)f)')
