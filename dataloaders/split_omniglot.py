@@ -8,11 +8,11 @@ import h5py
 
 ########################################################################################################################
 
-def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 10):
+def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 50):
     data = {}
     taskcla = []
     size = [1, 28, 28]
-    tasknum = 10
+    tasknum = 50
 
     if not os.path.isdir('../dat/binary_omniglot/'):
         os.makedirs('../dat/binary_omniglot')
@@ -39,9 +39,9 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 10):
 
             index_arr = np.arange(len(image))
             np.random.shuffle(index_arr)
-            train_ratio = (len(image)//10)*6
-            valid_ratio = (len(image)//10)*2
-            test_ratio = (len(image)//10)*2 
+            train_ratio = (len(image)//10)*8
+            valid_ratio = (len(image)//10)*1
+            test_ratio = (len(image)//10)*1
             
             train_idx = index_arr[:train_ratio]
             valid_idx = index_arr[train_ratio:train_ratio+valid_ratio]
@@ -67,10 +67,11 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 10):
         
         ncla_dict = torch.load(os.path.join(os.path.expanduser('../dat/binary_omniglot'), 'ncla_dict.pt'))
         # Load binary files
-        ids=list(shuffle(np.arange(tasknum),random_state=seed))
+#         ids=list(shuffle(np.arange(tasknum),random_state=seed))
+        ids=list(np.arange(tasknum))
         print('Task order =',ids)
         for i in range(tasknum):
-            data[i] = dict.fromkeys(['name', 'ncla', 'train', 'test'])
+            data[i] = dict.fromkeys(['name', 'ncla', 'train', 'test','valid'])
             data[i]['ncla'] = ncla_dict[ids[i]]
             data[i]['name'] = 'omniglot-{:d}'.format(i)
 

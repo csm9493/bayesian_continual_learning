@@ -15,7 +15,7 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 25):
     tasknum = 25
 
     if not os.path.isdir('../dat/binary_omniglot/'):
-#         os.makedirs('../dat/binary_omniglot')
+        os.makedirs('../dat/binary_omniglot')
         
         filename = 'Permuted_Omniglot_task50.pt'
         filepath = os.path.join(os.getcwd(), 'dataloaders/')

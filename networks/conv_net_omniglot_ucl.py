@@ -10,7 +10,7 @@ def compute_conv_output_size(Lin,kernel_size,stride=1,padding=0,dilation=1):
     return int(np.floor((Lin+2*padding-dilation*(kernel_size-1)-1)/float(stride)+1))
 
 class Net(nn.Module):
-    def __init__(self, inputsize, taskcla, ratio=0.25):
+    def __init__(self, inputsize, taskcla, ratio):
         super().__init__()
         
         ncha,size,_=inputsize #28
@@ -18,12 +18,12 @@ class Net(nn.Module):
         
         self.conv1 = BayesianConv2D(ncha,64,kernel_size=3,ratio=ratio)
         s = compute_conv_output_size(size,3) #26
-        self.conv2 = BayesianConv2D(ncha,64,kernel_size=3,ratio=ratio)
+        self.conv2 = BayesianConv2D(64,64,kernel_size=3,ratio=ratio)
         s = compute_conv_output_size(s,3) #24
         s = s//2 #12
-        self.conv3 = BayesianConv2D(ncha,64,kernel_size=3,ratio=ratio)
+        self.conv3 = BayesianConv2D(64,64,kernel_size=3,ratio=ratio)
         s = compute_conv_output_size(s,3) #10
-        self.conv4 = BayesianConv2D(ncha,64,kernel_size=3,ratio=ratio)
+        self.conv4 = BayesianConv2D(64,64,kernel_size=3,ratio=ratio)
         s = compute_conv_output_size(s,3) #8
         s = s//2 #4
         

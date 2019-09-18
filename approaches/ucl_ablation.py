@@ -308,7 +308,6 @@ class Appr(object):
                 std_init = math.sqrt((2 / fan_in) * args.ratio)
             if isinstance(trainer_layer, BayesianConv2D):
                 std_init = math.sqrt((2 / fan_out) * args.ratio)
-#             std_init = np.log(1+np.exp(args.rho))
             
             saver_weight_strength = (std_init / saver_weight_sigma)
 
@@ -328,6 +327,11 @@ class Appr(object):
                 prev_strength = prev_weight_strength.permute(1,0).expand(out_features,in_features)
             
             L2_strength = torch.max(curr_strength, prev_strength)
+            if args.ablation == 'no_upper':
+                L2_strength = curr_strength
+            if args.ablation == 'no_lower':
+                L2_strength = prev_strength
+            
             bias_strength = torch.squeeze(saver_weight_strength)
             
             L1_sigma = saver_weight_sigma
@@ -361,9 +365,14 @@ class Appr(object):
         # L2 loss
         loss = loss + alpha * (mu_weight_reg_sum + mu_bias_reg_sum) / (2 * mini_batch_size)
         # L1 loss
-        loss = loss + self.saved * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
+        if args.ablation != 'no_L1':
+            loss = loss + self.saved * (L1_mu_weight_reg_sum + L1_mu_bias_reg_sum) / (mini_batch_size)
         # sigma regularization
-        loss = loss + self.beta * (sigma_weight_reg_sum + sigma_weight_normal_reg_sum) / (2 * mini_batch_size)
+        if args.ablation == 'no_sigma_normal':
+            loss = loss + self.beta * (sigma_weight_reg_sum) / (2 * mini_batch_size)
+        else:
+            loss = loss + self.beta * (sigma_weight_reg_sum + sigma_weight_normal_reg_sum) / (2 * mini_batch_size)
             
         return loss
+
 

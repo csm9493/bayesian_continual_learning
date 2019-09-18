@@ -25,6 +25,10 @@ elif args.approach == 'ucl' or args.approach == 'baye_hat':
     log_name = '{}_{}_{}_{}_alpha_{}_beta_{:.5f}_ratio_{:.4f}_lr_{}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
         args.date, args.experiment, args.approach, args.seed, args.alpha, args.beta, args.ratio, 
         args.lr, args.lr_rho, args.unitN, args.batch_size, args.nepochs)
+elif args.approach == 'ucl_ablation':
+    log_name = '{}_{}_{}_{}_{}_alpha_{}_beta_{:.5f}_ratio_{:.4f}_lr_{}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
+        args.date, args.experiment, args.approach, args.seed, args.ablation, args.alpha, args.beta, args.ratio, 
+        args.lr, args.lr_rho, args.unitN, args.batch_size, args.nepochs)
 
 elif args.approach == 'hat':
     log_name = '{}_{}_{}_{}_alpha_{}_smax_{}_lr_{}_unitN_{}_batch_{}_epoch_{}'.format(args.date, args.experiment, 
@@ -67,7 +71,7 @@ conv_experiment = [
     'split_CUB200',
     'split_tiny_imagenet',
     'split_mini_imagenet', 
-    'split_omniglot',
+    'omniglot',
     'mixture'
 ]
 
@@ -80,9 +84,6 @@ if args.experiment in conv_experiment:
     log_name = log_name + '_conv'
 if args.output == '':
     args.output = './result_data/' + log_name + '.txt'
-
-
-    
     
 # Seed
 np.random.seed(args.seed)
@@ -117,7 +118,7 @@ elif args.experiment == 'split_tiny_imagenet':
     from dataloaders import split_tiny_imagenet as dataloader
 elif args.experiment == 'split_mini_imagenet':
     from dataloaders import split_mini_imagenet as dataloader
-elif args.experiment == 'split_omniglot':
+elif args.experiment == 'omniglot':
     from dataloaders import split_omniglot as dataloader
 elif args.experiment == 'mixture':
     from dataloaders import mixture as dataloader
@@ -127,6 +128,8 @@ if args.approach == 'random':
     from approaches import random as approach
 elif args.approach == 'ucl':
     from approaches import ucl as approach
+elif args.approach == 'ucl_ablation':
+    from approaches import ucl_ablation as approach
 elif args.approach == 'baye_hat':
     from core import baye_hat as approach
 elif args.approach == 'baye_fisher':
@@ -173,32 +176,32 @@ elif args.approach == 'joint':
 # Args -- Network
 
 if args.experiment == 'split_cifar100' or args.experiment == 'split_cifar10_100' or args.experiment == 'split_cifar10' or args.experiment == 'split_cifar100_20':
-    if args.approach == 'hat' or args.approach == 'hat-test':
+    if args.approach == 'hat':
         from networks import conv_net_hat as network
-    elif args.approach == 'ucl' or args.approach == 'baye_hat':
+    elif args.approach == 'ucl' or args.approach == 'ucl_ablation':
         from networks import conv_net_ucl as network
     else:
         from networks import conv_net as network
 
 elif args.experiment == 'mixture' or args.experiment == 'split_mini_imagenet' or args.experiment == 'split_tiny_imagenet' or args.experiment == 'split_CUB200':
-    if args.approach == 'hat' or args.approach == 'hat-test':
+    if args.approach == 'hat':
         from networks import alexnet_hat as network
-    elif args.approach == 'ucl' or args.approach == 'baye_hat':
+    elif args.approach == 'ucl' or args.approach == 'ucl_ablation':
         from networks import alexnet_ucl as network
     else:
         from networks import alexnet as network
 
-elif args.experiment == 'omnitlog':
-    if args.approach == 'hat' or args.approach == 'hat-test':
+elif args.experiment == 'omniglot':
+    if args.approach == 'hat':
         from networks import conv_net_omniglot_hat as network
-    elif args.approach == 'ucl' or args.approach == 'baye_hat':
+    elif args.approach == 'ucl' or args.approach == 'ucl_ablation':
         from networks import conv_net_omniglot_ucl as network
     else:
         from networks import conv_net_omniglot as network
 else:
-    if args.approach == 'hat' or args.approach == 'hat-test':
+    if args.approach == 'hat':
         from networks import mlp_hat as network
-    elif args.approach == 'ucl' or args.approach == 'baye_hat':
+    elif args.approach == 'ucl' or args.approach == 'ucl_ablation':
         from networks import mlp_ucl as network
     else:
         from networks import mlp as network
@@ -216,15 +219,25 @@ print('Inits...')
 # print (inputsize,taskcla)
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 if args.conv_net == False:
-    net = network.Net(inputsize, taskcla, unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
-    net_old = network.Net(inputsize, taskcla, unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
-    appr = approach.Appr(net, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
+    if args.approach == 'ucl' or args.approach == 'ucl_ablation':
+        net = network.Net(inputsize, taskcla, args.ratio, unitN=args.unitN,  split = split, notMNIST=notMNIST).cuda()
+        net_old = network.Net(inputsize, taskcla, args.ratio, unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
+        appr = approach.Appr(net, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
+    else:
+        net = network.Net(inputsize, taskcla, unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
+        net_old = network.Net(inputsize, taskcla, unitN=args.unitN, split = split, notMNIST=notMNIST).cuda()
+        appr = approach.Appr(net, sbatch=args.batch_size, nepochs=args.nepochs, args=args, log_name=log_name, split=split)
 else:
-    net = network.Net(inputsize, taskcla).cuda()
-    net_old = network.Net(inputsize, taskcla).cuda()
-    appr = approach.Appr(net, sbatch=args.batch_size, lr=args.lr, nepochs=args.nepochs, args=args,
-                         log_name=log_name, split=split)
-    
+    if args.approach == 'ucl' or args.approach == 'ucl_ablation':
+        net = network.Net(inputsize, taskcla, args.ratio).cuda()
+        net_old = network.Net(inputsize, taskcla, args.ratio).cuda()
+        appr = approach.Appr(net, sbatch=args.batch_size, lr=args.lr, nepochs=args.nepochs, args=args,
+                             log_name=log_name, split=split)
+    else:
+        net = network.Net(inputsize, taskcla).cuda()
+        net_old = network.Net(inputsize, taskcla).cuda()
+        appr = approach.Appr(net, sbatch=args.batch_size, lr=args.lr, nepochs=args.nepochs, args=args,
+                             log_name=log_name, split=split)
 
     
 utils.print_model_report(net)
@@ -238,7 +251,7 @@ acc = np.zeros((len(taskcla), len(taskcla)), dtype=np.float32)
 lss = np.zeros((len(taskcla), len(taskcla)), dtype=np.float32)
 for t, ncla in taskcla:
     
-    if t == args.tasknum:
+    if t==args.tasknum:
         break
     
     print('*' * 100)

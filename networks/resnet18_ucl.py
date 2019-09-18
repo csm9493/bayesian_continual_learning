@@ -125,8 +125,8 @@ class BasicBlock(nn.Module):
         return out
 
 
-class BayesianConvNetwork(nn.Module):
-    def __init__(self, inputsize, taskcla, ratio = 0.25):
+class Net(nn.Module):
+    def __init__(self, inputsize, taskcla, ratio):
         super(BayesianConvNetwork, self).__init__()
         self.ratio = ratio
         self.taskcla = taskcla

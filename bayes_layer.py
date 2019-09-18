@@ -41,7 +41,7 @@ class Gaussian(object):
         return self.mu + self.sigma * epsilon   
 
 class BayesianLinear(nn.Module):
-    def __init__(self, in_features, out_features, ratio = 0.5):
+    def __init__(self, in_features, out_features, ratio=0.5):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -116,7 +116,7 @@ class _BayesianConvNd(nn.Module):
         
 class BayesianConv2D(_BayesianConvNd):
     def __init__(self, in_channels, out_channels, kernel_size, 
-                 stride=1, padding=0, dilation=1, groups=1, bias=True, ratio = 0.125):
+                 stride=1, padding=0, dilation=1, groups=1, bias=True, ratio=0.25):
         kernel_size = _pair(kernel_size)
         stride = _pair(stride)
         padding = _pair(padding)
