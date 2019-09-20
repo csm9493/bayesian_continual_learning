@@ -222,6 +222,7 @@ class Appr(object):
     
     def omega_update(self,t,x):
         sbatch = self.sbatch
+#         sbatch = 1
         
         # Compute
         self.model.train()
