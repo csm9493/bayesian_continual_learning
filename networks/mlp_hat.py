@@ -69,7 +69,8 @@ class Net(torch.nn.Module):
             for t,i in self.taskcla:
                 y.append(self.last[t](h))
         else:
-            y=self.relu(self.fc3(h))
+#             y=self.relu(self.fc3(h))
+            y=self.fc3(h)
             
         masks = [gfc1, gfc2]
         if self.notMNIST:

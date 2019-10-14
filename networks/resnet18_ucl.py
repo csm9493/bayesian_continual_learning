@@ -134,7 +134,7 @@ class Net(nn.Module):
         self.inplanes = 64
         self.blocks = 2
         
-        self.conv1 = BayesianConv2D(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
+        self.conv1 = BayesianConv2D(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False,ratio=ratio)
         self.bn1 = nn.BatchNorm2d(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
