@@ -36,9 +36,6 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 25):
                 target = f['Y']['train'][i]
                 
                 index_arr = np.arange(len(image))
-                print(image.shape)
-                print(len(image))
-                print(aaaa)
                 np.random.shuffle(index_arr)
             
                 data[i][s]['x'] = image[index_arr]
@@ -53,6 +50,8 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 25):
         torch.save(ncla_dict, os.path.join(os.path.expanduser('../dat/binary_omniglot'), 'ncla_dict.pt'))
 
     else:
+        
+        data_num = 0
         
         ncla_dict = torch.load(os.path.join(os.path.expanduser('../dat/binary_omniglot'), 'ncla_dict.pt'))
         # Load binary files
@@ -72,6 +71,9 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 25):
         data[t]['valid'] = {}
         data[t]['valid']['x'] = data[t]['train']['x'].clone()
         data[t]['valid']['y'] = data[t]['train']['y'].clone()
+        print(data[t]['train']['x'].shape[0])
+        data_num += data[t]['train']['x'].shape[0]
+    print(data_num)
 
     # Others
     n = 0

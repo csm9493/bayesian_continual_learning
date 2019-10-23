@@ -18,9 +18,6 @@ if args.conv_net:
 else:
     from networks.mlp import Net
 
-resnet_model = models.resnet18(pretrained=True).cuda()
-feature_extractor = nn.Sequential(*list(resnet_model.children())[:-4])
-    
 class Appr():
     """ Class implementing the Synaptic intelligence approach described in https://arxiv.org/abs/1703.04200 """
 
@@ -87,38 +84,25 @@ class Appr():
         for e in range(self.nepochs):
             # Train
             clock0=time.time()
+            num_batch = xtrain.size(0)
             
-            # CUB 200 xtrain_croped = crop(x_train)
-            xtrain_ = xtrain
-            xvalid_ = xvalid
-            if args.experiment == 'split_CUB200':
-                xtrain_ = crop(xtrain, 224, mode='train')
-                xvalid_ = crop(xvalid, 224, mode='valid')
-                num_batch = len(xtrain)
-            else:
-                num_batch = xtrain.size(0)
-            
-            self.train_epoch(t,xtrain_,ytrain)
+            self.train_epoch(t,xtrain,ytrain)
             
             clock1=time.time()
-            train_loss,train_acc=self.eval(t,xtrain_,ytrain)
+            train_loss,train_acc=self.eval(t,xtrain,ytrain)
             clock2=time.time()
             print('| Epoch {:3d}, time={:5.1f}ms/{:5.1f}ms | Train: loss={:.3f}, acc={:5.1f}% |'.format(
                 e+1,1000*self.sbatch*(clock1-clock0)/num_batch,1000*self.sbatch*(clock2-clock1)/num_batch,train_loss,100*train_acc),end='')
             # Valid
-            valid_loss,valid_acc=self.eval(t,xvalid_,yvalid)
+            valid_loss,valid_acc=self.eval(t,xvalid,yvalid)
             print(' Valid: loss={:.3f}, acc={:5.1f}% |'.format(valid_loss,100*valid_acc),end='')
             
             #save log for current task & old tasks at every epoch
             self.logger.add(epoch=(t*self.nepochs)+e, task_num=t+1, valid_loss=valid_loss, valid_acc=valid_acc)
             for task in range(t): 
-                if args.experiment == 'split_CUB200':
-                    xvalid_t=data[task]['valid']['x']
-                    xvalid_t = crop(xvalid_t, 224, mode='valid')
-                else:
-                    xvalid_t=data[task]['valid']['x'].cuda()
-                
+                xvalid_t=data[task]['valid']['x'].cuda()
                 yvalid_t=data[task]['valid']['y'].cuda()
+                
                 valid_loss_t,valid_acc_t=self.eval(task,xvalid_t,yvalid_t)
                 self.logger.add(epoch=(t*self.nepochs)+e, task_num=task+1, valid_loss=valid_loss_t, valid_acc=valid_acc_t)
             
@@ -166,9 +150,6 @@ class Appr():
             images=x[b]
             targets=y[b]
             
-            if args.experiment == 'split_CUB200':
-                images = feature_extractor(images)
-            
             # Forward current model
             if self.split:
                 output = self.model.forward(images)[t]
@@ -207,9 +188,6 @@ class Appr():
             else: b=r[i:]
             images=x[b]
             targets=y[b]
-            
-            if args.experiment == 'split_CUB200':
-                images = feature_extractor(images)
             
             # Forward
             if self.split:

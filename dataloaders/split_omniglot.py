@@ -86,10 +86,15 @@ def get(seed=0, fixed_order=False, pc_valid=0, tasknum = 50):
 
     # Others
     n = 0
+    data_num = 0
     for t in data.keys():
         taskcla.append((t, data[t]['ncla']))
         n += data[t]['ncla']
-        print(data[t]['ncla'])
+        print('Task %d: %d classes'%(t+1,data[t]['ncla']))
+#         print(data[t]['train']['x'].shape[0])
+        data_num += data[t]['train']['x'].shape[0]
+    print(data_num)
+        
     data['ncla'] = n
     print(n)
     return data, taskcla, size

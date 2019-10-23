@@ -25,6 +25,7 @@ elif args.approach == 'ucl' or args.approach == 'baye_hat':
     log_name = '{}_{}_{}_{}_alpha_{}_beta_{:.5f}_ratio_{:.4f}_lr_{}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
         args.date, args.experiment, args.approach, args.seed, args.alpha, args.beta, args.ratio, 
         args.lr, args.lr_rho, args.unitN, args.batch_size, args.nepochs)
+
 elif args.approach == 'ucl_ablation':
     log_name = '{}_{}_{}_{}_{}_alpha_{}_beta_{:.5f}_ratio_{:.4f}_lr_{}_lr_rho_{}_unitN_{}_batch_{}_epoch_{}'.format(
         args.date, args.experiment, args.approach, args.seed, args.ablation, args.alpha, args.beta, args.ratio, 
@@ -36,7 +37,6 @@ elif args.approach == 'hat':
                                                                               args.alpha, args.smax, args.lr, args.unitN, 
                                                                               args.batch_size, args.nepochs)
 
-    
 print('=' * 100)
 print('Arguments =')
 for arg in vars(args):
@@ -278,12 +278,8 @@ for t, ncla in taskcla:
             task = [task_t, task_v]
     else:
         # Get data
-        if args.experiment == 'split_CUB200':
-            xtrain = data[t]['train']['x']
-            xvalid = data[t]['valid']['x']
-        else:
-            xtrain = data[t]['train']['x'].cuda()
-            xvalid = data[t]['valid']['x'].cuda()
+        xtrain = data[t]['train']['x'].cuda()
+        xvalid = data[t]['valid']['x'].cuda()
             
         ytrain = data[t]['train']['y'].cuda()
         yvalid = data[t]['valid']['y'].cuda()
@@ -295,11 +291,7 @@ for t, ncla in taskcla:
 
     # Test
     for u in range(t + 1):
-        if args.experiment == 'split_CUB200':
-            xtest = data[u]['test']['x']
-            xtest = crop(xtest, 224, mode='test')
-        else:
-            xtest = data[u]['test']['x'].cuda()
+        xtest = data[u]['test']['x'].cuda()
         ytest = data[u]['test']['y'].cuda()
         test_loss, test_acc = appr.eval(u, xtest, ytest)
         print('>>> Test on task {:2d} - {:15s}: loss={:.3f}, acc={:5.1f}% <<<'.format(u, data[u]['name'], test_loss,

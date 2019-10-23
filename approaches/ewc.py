@@ -18,9 +18,6 @@ else:
     from networks.mlp import Net
 
 
-resnet_model = models.resnet18(pretrained=True).cuda()
-feature_extractor = nn.Sequential(*list(resnet_model.children())[:-4])
-
 class Appr(object):
     """ Class implementing the Elastic Weight Consolidation approach described in http://arxiv.org/abs/1612.00796 """
 
@@ -73,35 +70,24 @@ class Appr(object):
             clock0=time.time()
             
             # CUB 200 xtrain_cropped = crop(x_train)
-            xtrain_ = xtrain
-            xvalid_ = xvalid
-            if args.experiment == 'split_CUB200':
-                xtrain_ = crop(xtrain, 224, mode='train')
-                xvalid_ = crop(xvalid, 224, mode='valid')
-                num_batch = len(xtrain)
-            else:
-                num_batch = xtrain.size(0)
+            num_batch = xtrain.size(0)
             
-            self.train_epoch(t,xtrain_,ytrain)
+            self.train_epoch(t,xtrain,ytrain)
             
             clock1=time.time()
-            train_loss,train_acc=self.eval(t,xtrain_,ytrain)
+            train_loss,train_acc=self.eval(t,xtrain,ytrain)
             clock2=time.time()
             print('| Epoch {:3d}, time={:5.1f}ms/{:5.1f}ms | Train: loss={:.3f}, acc={:5.1f}% |'.format(
                 e+1,1000*self.sbatch*(clock1-clock0)/num_batch,
                 1000*self.sbatch*(clock2-clock1)/num_batch,train_loss,100*train_acc),end='')
             # Valid
-            valid_loss,valid_acc=self.eval(t,xvalid_,yvalid)
+            valid_loss,valid_acc=self.eval(t,xvalid,yvalid)
             print(' Valid: loss={:.3f}, acc={:5.1f}% |'.format(valid_loss,100*valid_acc),end='')
             
             #save log for current task & old tasks at every epoch
             self.logger.add(epoch=(t*self.nepochs)+e, task_num=t+1, valid_loss=valid_loss, valid_acc=valid_acc)
             for task in range(t): 
-                if args.experiment == 'split_CUB200':
-                    xvalid_t=data[task]['valid']['x']
-                    xvalid_t = crop(xvalid_t, 224, mode='valid')
-                else:
-                    xvalid_t=data[task]['valid']['x'].cuda()
+                xvalid_t=data[task]['valid']['x'].cuda()
                 
                 yvalid_t=data[task]['valid']['y'].cuda()
                 
@@ -136,6 +122,7 @@ class Appr(object):
         
         # Update old
         self.model_old = deepcopy(self.model)
+        self.model_old.eval()
         utils.freeze_model(self.model_old) # Freeze the weights
 
         # Fisher ops
@@ -143,7 +130,7 @@ class Appr(object):
             fisher_old={}
             for n,_ in self.model.named_parameters():
                 fisher_old[n]=self.fisher[n].clone()
-        self.fisher=utils.fisher_matrix_diag(t,xtrain_,ytrain,self.model,self.criterion, split = self.split)
+        self.fisher=utils.fisher_matrix_diag(t,xtrain,ytrain,self.model,self.criterion, split = self.split)
         if t>0:
             # Watch out! We do not want to keep t models (or fisher diagonals) in memory, therefore we have to merge fisher diagonals
             for n,_ in self.model.named_parameters():
@@ -166,9 +153,6 @@ class Appr(object):
             images=x[b]
             targets=y[b]
             
-            if args.experiment == 'split_CUB200':
-                images = feature_extractor(images)
-
             # Forward current model
             if self.split:
                 outputs = self.model.forward(images)[t]
@@ -201,9 +185,6 @@ class Appr(object):
             images=x[b]
             targets=y[b]
             
-            if args.experiment == 'split_CUB200':
-                images = feature_extractor(images)
-            
             # Forward
             if self.split:
                 output = self.model.forward(images)[t]
@@ -234,4 +215,3 @@ class Appr(object):
 #                 else:
                 loss_reg+=torch.sum(self.fisher[name]*(param_old-param).pow(2))/2
         return self.ce(output,targets)+self.lamb*loss_reg
-
