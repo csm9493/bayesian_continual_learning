@@ -53,7 +53,6 @@ class Appr(object):
             self.param_name.append(name)
         
         self.optimizer = self._get_optimizer()
-#         Adam(self.model.parameters(), lr=lr, lr_rho=lr_rho, param_name = self.param_name)
         
         if len(args.parameter) >= 1:
             params = args.parameter.split(',')
@@ -69,7 +68,6 @@ class Appr(object):
             return Adam(self.model.parameters(), lr=lr, lr_rho=lr_rho, param_name = self.param_name)
         if args.optimizer == 'SGD':
             return torch.optim.SGD(self.model.parameters(),lr=lr)
-#         return torch.optim.Adam(self.model.parameters(), lr=lr)
     
     def train(self, t, xtrain, ytrain, xvalid, yvalid, data, input_size, taskcla):
         best_loss = np.inf
@@ -85,10 +83,6 @@ class Appr(object):
             # Train
             clock0 = time.time()
 
-            # self.model.variance_init()  # trainer net의 variance크게 init
-
-            # 1. trainer_net training 하는데 regularization을 위해서 saver_net의 정보 이용
-            
             num_batch = xtrain.size(0)
             
             self.train_epoch(t, xtrain, ytrain)
@@ -128,16 +122,12 @@ class Appr(object):
                     print(' lr={:.1e}'.format(lr), end='')
                     if lr < self.lr_min:
                         print()
-                        if args.conv_net:
-                            pass
-#                             break
                     patience = self.lr_patience
                     self.optimizer = self._get_optimizer(lr, lr_rho)
             print()
 
             utils.freeze_model(self.model_old)  # Freeze the weights
             
-#             self.print_log(e)
             
         # Restore best
         utils.set_model_(self.model, best_model)
@@ -246,9 +236,6 @@ class Appr(object):
         
         out_features_max = 512
         alpha = args.alpha
-#         alpha = 0.01
-#         if args.conv_net:
-#             alpha = 1
         if self.saved:
             alpha = 1
         
@@ -279,7 +266,6 @@ class Appr(object):
                 std_init = math.sqrt((2 / fan_in) * args.ratio)
             if isinstance(trainer_layer, BayesianConv2D):
                 std_init = math.sqrt((2 / fan_out) * args.ratio)
-#             std_init = np.log(1+np.exp(args.rho))
             
             saver_weight_strength = (std_init / saver_weight_sigma)
 

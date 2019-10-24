@@ -45,7 +45,6 @@ class Net(torch.nn.Module):
             
         else:
             y = self.fc3(h)
-#             y = F.log_softmax(y, dim=1)
         
         return y
 
